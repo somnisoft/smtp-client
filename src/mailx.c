@@ -25,11 +25,16 @@
 #include "smtp.h"
 
 /**
- * Stores information about the destination email address.
+ * Stores the to and from email addresses.
  */
 struct mailx_address{
   /**
-   * Destination email address.
+   * See @ref smtp_address_type.
+   */
+  enum smtp_address_type address_type;
+
+  /**
+   * Email address.
    */
   char email[1000];
 };
@@ -68,22 +73,27 @@ struct mailx{
   /**
    * SMTP server name or IP address.
    */
-  const char *server;
+  char *server;
 
   /**
    * SMTP server port number.
    */
-  const char *port;
+  char *port;
 
   /**
    * SMTP account user name used for authenticating.
    */
-  const char *user;
+  char *user;
 
   /**
    * SMTP account password used for authenticating.
    */
-  const char *pass;
+  char *pass;
+
+  /**
+   * From email address or name.
+   */
+  char *from;
 
   /**
    * Determine if using a TLS encrypted connection or plain socket.
@@ -126,11 +136,13 @@ struct mailx{
 /**
  * Append this email to the list of email addresses to send to.
  *
- * @param[in] mailx Append the email address into this mailx context.
- * @param[in] email Email address to send to.
+ * @param[in] mailx        Append the email address into this mailx context.
+ * @param[in] address_type See @ref smtp_address_type.
+ * @param[in] email        Email address to send to.
  */
 static void
 mailx_address_append(struct mailx *const mailx,
+                     enum smtp_address_type address_type,
                      const char *const email){
   struct mailx_address *new_address;
   size_t new_address_list_sz;
@@ -143,6 +155,7 @@ mailx_address_append(struct mailx *const mailx,
   }
 
   new_address = &mailx->address_list[mailx->num_address - 1];
+  new_address->address_type = address_type;
   strncpy(new_address->email, email, sizeof(new_address->email));
   new_address->email[sizeof(new_address->email) - 1] = '\0';
 }
@@ -172,7 +185,7 @@ mailx_send(struct mailx *const mailx){
 
   for(i = 0; i < mailx->num_address; i++){
     address = &mailx->address_list[i];
-    smtp_address_add(mailx->smtp, SMTP_ADDRESS_TO, address->email, NULL);
+    smtp_address_add(mailx->smtp, address->address_type, address->email, NULL);
   }
 
   for(i = 0; i < mailx->num_attachment; i++){
@@ -237,7 +250,7 @@ mailx_append_attachment_arg(struct mailx *const mailx,
   }
 
   filename = strtok(attach_arg_dup, ":");
-  filepath = strtok(attach_arg_dup, ":");
+  filepath = strtok(NULL, ":");
 
   mailx_append_attachment(mailx, filename, filepath);
 
@@ -270,7 +283,7 @@ mailx_parse_smtp_option(struct mailx *const mailx,
     errx(1, "strtok: %s", optdup);
   }
 
-  opt_value = strtok(optdup, "=");
+  opt_value = strtok(NULL, "=");
 
   if(strcmp(opt_key, "smtp-security") == 0){
     if(strcmp(opt_value, "none") == 0){
@@ -315,16 +328,29 @@ mailx_parse_smtp_option(struct mailx *const mailx,
     }
   }
   else if(strcmp(opt_key, "smtp-server") == 0){
-    mailx->server = opt_value;
+    if((mailx->server = strdup(opt_value)) == NULL){
+      err(1, "strdup");
+    }
   }
   else if(strcmp(opt_key, "smtp-port") == 0){
-    mailx->port = opt_value;
+    if((mailx->port = strdup(opt_value)) == NULL){
+      err(1, "strdup");
+    }
   }
   else if(strcmp(opt_key, "smtp-user") == 0){
-    mailx->user = opt_value;
+    if((mailx->user = strdup(opt_value)) == NULL){
+      err(1, "strdup");
+    }
   }
   else if(strcmp(opt_key, "smtp-pass") == 0){
-    mailx->pass = opt_value;
+    if((mailx->pass = strdup(opt_value)) == NULL){
+      err(1, "strdup");
+    }
+  }
+  else if(strcmp(opt_key, "smtp-from") == 0){
+    if((mailx->from = strdup(opt_value)) == NULL){
+      err(1, "strdup");
+    }
   }
   else{
     rc = -1;
@@ -348,12 +374,22 @@ static void
 mailx_init_default_values(struct mailx *const mailx){
   memset(mailx, 0, sizeof(*mailx));
   mailx->subject = "";
-  mailx->server = "localhost";
-  mailx->port = "25";
-  mailx->user = "";
-  mailx->pass = "";
   mailx->connection_security = SMTP_SECURITY_NONE;
   mailx->auth_method = SMTP_AUTH_NONE;
+}
+
+/**
+ * Frees the allocated memory associated with the mailx context.
+ *
+ * @param[in] mailx The mailx context to free.
+ */
+static void
+mailx_free(const struct mailx *const mailx){
+  free(mailx->server);
+  free(mailx->port);
+  free(mailx->user);
+  free(mailx->pass);
+  free(mailx->from);
 }
 
 /**
@@ -420,11 +456,30 @@ int main(int argc, char *argv[]){
     errx(1, "must provide at least one email destination address");
   }
 
+  if(mailx.from == NULL){
+    errx(1, "must provide a FROM address");
+  }
+
+  if(mailx.server == NULL){
+    if((mailx.server = strdup("localhost")) == NULL){
+      err(1, "strdup");
+    }
+  }
+
+  if(mailx.port == NULL){
+    if((mailx.port = strdup("25")) == NULL){
+      err(1, "strdup");
+    }
+  }
+
+  mailx_address_append(&mailx, SMTP_ADDRESS_FROM, mailx.from);
+
   for(i = 0; i < argc; i++){
-    mailx_address_append(&mailx, argv[i]);
+    mailx_address_append(&mailx, SMTP_ADDRESS_TO, argv[i]);
   }
 
   mailx_send(&mailx);
+  mailx_free(&mailx);
   return 0;
 }
 
