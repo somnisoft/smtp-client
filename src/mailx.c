@@ -71,6 +71,11 @@ struct mailx{
   const char *subject;
 
   /**
+   * Email body text.
+   */
+  char *body;
+
+  /**
    * SMTP server name or IP address.
    */
   char *server;
@@ -134,6 +139,57 @@ struct mailx{
 };
 
 /**
+ * Read the entire contents of a file stream and store the data into a
+ * dynamically allocated buffer.
+ *
+ * @param[in]  stream     File stream already opened by the caller.
+ * @param[out] bytes_read Number of bytes stored in the return buffer.
+ * @retval char* A dynamically allocated buffer which contains the entire
+ *               contents of @p stream. The caller must free this memory
+ *               when done.
+ * @retval NULL Memory allocation or file read error.
+ */
+static char *
+smtp_ffile_get_contents(FILE *stream,
+                        size_t *bytes_read){
+  char *read_buf;
+  size_t bufsz;
+  char *new_buf;
+  const size_t BUFSZ_INCREMENT = 512;
+
+  read_buf = NULL;
+  bufsz = 0;
+
+  if(bytes_read){
+    *bytes_read = 0;
+  }
+
+  do{
+    size_t bytes_read_loop;
+    if((new_buf = realloc(read_buf, bufsz + BUFSZ_INCREMENT)) == NULL){
+      free(read_buf);
+      return NULL;
+    }
+    read_buf = new_buf;
+    bufsz += BUFSZ_INCREMENT;
+
+    bytes_read_loop = fread(&read_buf[bufsz - BUFSZ_INCREMENT],
+                            sizeof(char),
+                            BUFSZ_INCREMENT,
+                            stream);
+    if(bytes_read){
+      *bytes_read += bytes_read_loop;
+    }
+    if(ferror(stream)){
+      free(read_buf);
+      return NULL;
+    }
+  } while(!feof(stream));
+
+  return read_buf;
+}
+
+/**
  * Append this email to the list of email addresses to send to.
  *
  * @param[in] mailx        Append the email address into this mailx context.
@@ -193,7 +249,7 @@ mailx_send(struct mailx *const mailx){
     smtp_attachment_add_path(mailx->smtp, attachment->name, attachment->path);
   }
   smtp_header_add(mailx->smtp, "Subject", mailx->subject);
-  smtp_mail(mailx->smtp, "test body");
+  smtp_mail(mailx->smtp, mailx->body);
 
   rc = smtp_close(mailx->smtp);
 
@@ -385,6 +441,7 @@ mailx_init_default_values(struct mailx *const mailx){
  */
 static void
 mailx_free(const struct mailx *const mailx){
+  free(mailx->body);
   free(mailx->server);
   free(mailx->port);
   free(mailx->user);
@@ -470,6 +527,10 @@ int main(int argc, char *argv[]){
     if((mailx.port = strdup("25")) == NULL){
       err(1, "strdup");
     }
+  }
+
+  if((mailx.body = smtp_ffile_get_contents(stdin, NULL)) == NULL){
+    err(1, "failed to read email body from stdin");
   }
 
   mailx_address_append(&mailx, SMTP_ADDRESS_FROM, mailx.from);
