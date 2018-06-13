@@ -130,7 +130,3 @@ send an email to
 <a href='mailto:mail@somnisoft.com'>mail@somnisoft.com</a>
 .
 
-Also see the following RFC references:
-  *  [https://www.ietf.org/rfc/rfc5321.txt | RFC 5321]
-  *  [https://www.ietf.org/rfc/rfc5322.txt | RFC 5322]
-
