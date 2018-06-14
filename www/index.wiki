@@ -2,8 +2,9 @@
 
 <h1>smtp-client</h1>
 This is an SMTP client library written in C which can can get included
-directly into another program. This library has been released into the
-public domain using
+directly into another program.
+
+This library has been released into the public domain using
 [https://creativecommons.org/publicdomain/zero/1.0/ | CC0]
 .
 
@@ -17,7 +18,6 @@ Short feature list:
   *  Optional OpenSSL TLS connection and authentication methods
   *  TODO (almost completed): Test cases with 100% code and branch coverage
   *  Doxygen with 100% documentation including the test code
-  *  POSIX mailx utility (send mode)
   *  Free software (permissive - CC0)
 
 This library supports the following connection methods:
@@ -46,7 +46,8 @@ The following example code demonstrates how to use the library.
 #define MAIL_SERVER              "mail.example.com"
 #define MAIL_PORT                "25"
 #define MAIL_CONNECTION_SECURITY SMTP_SECURITY_STARTTLS
-#define MAIL_FLAGS               SMTP_DEBUG
+#define MAIL_FLAGS               (SMTP_DEBUG         | \
+                                  SMTP_NO_CERT_VERIFY) /* Do not verify cert. */
 #define MAIL_AUTH                SMTP_AUTH_PLAIN
 #define MAIL_USER                "mail@example.com"
 #define MAIL_PASS                "password"
@@ -85,7 +86,7 @@ int main(void)
                  MAIL_BODY);
   rc = smtp_close(smtp);
   if(rc != SMTP_STATUS_OK){
-    fprintf(stderr, "smtp failed: %s", smtp_status_code_errstr(rc));
+    fprintf(stderr, "smtp failed: %s\n", smtp_status_code_errstr(rc));
     return 1;
   }
   return 0;
