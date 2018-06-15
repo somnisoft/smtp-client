@@ -126,7 +126,7 @@ and
 for more details.
 
 <h1>Technical Documentation</h1>
-[www.somnisoft.com/smtp-client/technical-documentation/index.html|Technical Documentation]
+[https://www.somnisoft.com/smtp-client/technical-documentation/index.html|Technical Documentation]
 generated from Doxygen.
 
 <h1>Contact</h1>
