@@ -125,9 +125,7 @@ and
 [/file/src/SMTPMail.cpp | SMTPMail.cpp]
 for more details.
 
-<h1>
-[www.somnisoft.com/smtp-client/technical-documentation/index.html|Technical Documentation]
-</h1>
+<h1>Technical Documentation</h1>
 [www.somnisoft.com/smtp-client/technical-documentation/index.html|Technical Documentation]
 generated from Doxygen.
 
