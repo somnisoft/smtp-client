@@ -15,6 +15,37 @@
 
 #include "test.h"
 
+/*
+ * Redefine these functions to internal test seam functions.
+ */
+#undef BIO_new_socket
+#undef BIO_should_retry
+#undef calloc
+#undef close
+#undef connect
+#undef ERR_peek_error
+#undef fclose
+#undef ferror
+#undef gmtime_r
+#undef HMAC
+#undef localtime_r
+#undef malloc
+#undef mktime
+#undef realloc
+#undef recv
+#undef select
+#undef send
+#undef socket
+#undef SSL_connect
+#undef SSL_CTX_new
+#undef SSL_do_handshake
+#undef SSL_get_peer_certificate
+#undef SSL_new
+#undef SSL_read
+#undef SSL_write
+#undef sprintf
+#undef time
+
 /**
  * Redefine this function from smtp.c and inject a test seam which
  * can control when this function fails.
@@ -29,7 +60,6 @@
  *
  * See @ref smtp_test_seam_bio_should_retry.
  */
-#undef BIO_should_retry
 #define BIO_should_retry         smtp_test_seam_bio_should_retry
 
 /**
