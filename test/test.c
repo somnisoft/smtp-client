@@ -1046,6 +1046,12 @@ struct smtp_test_getdelimfd_fp{
 };
 
 /**
+ * Set to a non-zero value to force an error return value
+ * in @ref smtp_unit_test_getdelimfd_fp.
+ */
+static int g_smtp_test_getdelimfd_fp_fail = 0;
+
+/**
  * Read function used by the @ref smtp_str_getdelimfd interface.
  *
  * @param[in]  gdfd  See @ref str_getdelimfd.
@@ -1059,41 +1065,84 @@ smtp_unit_test_getdelimfd_fp(struct str_getdelimfd *const gdfd,
                              void *buf,
                              size_t count){
   struct smtp_test_getdelimfd_fp *getdelimfd_fp;
+  size_t bytes_read;
 
   getdelimfd_fp = gdfd->user_data;
-  return fread(buf, sizeof(char), count, getdelimfd_fp->fp);
+  bytes_read = fread(buf, sizeof(char), count, getdelimfd_fp->fp);
+  if(g_smtp_test_getdelimfd_fp_fail){
+    return -1;
+  }
+  return bytes_read;
 }
 
 /**
  * Test harness for @ref smtp_str_getdelimfd.
  *
- * @param[in] input_string Test string used in delimeter parsing.
- * @param[in] expect       Expected return code.
+ * @param[in] input_string  Test string used in delimeter parsing.
+ * @param[in] nbytes        Number of bytes in @p input_string.
+ * @param[in] delim         Delimiter used to split the string.
+ * @param[in] expect_rc     Expected return code.
+ * @param[in] expect_pieces Expected list of strings parsed from the file.
  */
 static void
 smtp_unit_test_str_getdelimfd(const char *const input_string,
-                              enum str_getdelim_retcode expect){
-  enum str_getdelim_retcode result;
+                              size_t nbytes,
+                              int delim,
+                              enum str_getdelim_retcode expect_rc,
+                              const char *expect_pieces, ...){
+  const char *piece;
+  enum str_getdelim_retcode rc;
+  size_t bytes_written;
   struct str_getdelimfd gdfd;
   struct smtp_test_getdelimfd_fp getdelimfd_fp;
-  size_t bytes_written;
+  struct smtp_str_list slist;
+  FILE *fp;
+  size_t piece_idx;
+  va_list ap;
 
-  bytes_written = smtp_file_put_contents(TMP_FILE_PATH, input_string, -1, 0);
-  assert(bytes_written != strlen(input_string));
+  memset(&slist, 0, sizeof(slist));
+
+  bytes_written = smtp_file_put_contents(TMP_FILE_PATH,
+                                         input_string,
+                                         nbytes,
+                                         0);
+  assert(bytes_written == nbytes);
 
   memset(&getdelimfd_fp, 0, sizeof(getdelimfd_fp));
-  getdelimfd_fp.fp = fopen(TMP_FILE_PATH, "r");
-  assert(getdelimfd_fp.fp);
+  fp = fopen(TMP_FILE_PATH, "r");
+  assert(fp);
+  getdelimfd_fp.fp = fp;
 
   memset(&gdfd, 0, sizeof(gdfd));
-  gdfd.delim           = '\n';
+  gdfd.delim           = delim;
   gdfd.getdelimfd_read = smtp_unit_test_getdelimfd_fp;
   gdfd.user_data       = &getdelimfd_fp;
 
-  result = smtp_str_getdelimfd(&gdfd);
-  assert(result == expect);
-
+  do{
+    rc = smtp_str_getdelimfd(&gdfd);
+    if(expect_rc == STRING_GETDELIMFD_ERROR){
+      assert(rc == expect_rc);
+      smtp_str_list_free(&slist);
+      return;
+    }
+    assert(rc != STRING_GETDELIMFD_ERROR);
+    assert(smtp_str_list_append(&slist, gdfd.line, gdfd.line_len) == 0);
+  } while (rc != STRING_GETDELIMFD_DONE);
   smtp_str_getdelimfd_free(&gdfd);
+  assert(fclose(fp) == 0);
+
+  piece_idx = 0;
+  piece = expect_pieces;
+  va_start(ap, expect_pieces);
+  while (piece){
+    assert(strcmp(piece, slist.slist[piece_idx]) == 0);
+    piece_idx += 1;
+    piece = va_arg(ap, const char *);
+  }
+  va_end(ap);
+  assert(piece_idx == slist.n);
+
+  smtp_str_list_free(&slist);
 }
 
 /**
@@ -1101,9 +1150,126 @@ smtp_unit_test_str_getdelimfd(const char *const input_string,
  */
 static void
 smtp_unit_test_all_str_getdelimfd(void){
-  /***TODO: more tests*/
-  smtp_unit_test_str_getdelimfd("",
-                                STRING_GETDELIMFD_ERROR);
+  const char *s;
+
+  s = "";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "",
+                                NULL);
+
+  s = "a";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "a",
+                                NULL);
+
+  s = "\n";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "",
+                                "",
+                                NULL);
+
+  s = "a\n";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "a",
+                                "",
+                                NULL);
+
+  s = "\na";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "",
+                                "a",
+                                NULL);
+
+  s = "test line 1";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "test line 1",
+                                NULL);
+
+  s = "test line 1\n";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "test line 1",
+                                "",
+                                NULL);
+
+  s = "test line 1\ntest line 2";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "test line 1",
+                                "test line 2",
+                                NULL);
+
+  s = "test line 1\ntest line 2\ntest line 3";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_DONE,
+                                "test line 1",
+                                "test line 2",
+                                "test line 3",
+                                NULL);
+
+  /* smtp_str_getdelimfd_set_line_and_buf - 2 */
+  g_smtp_test_err_calloc_ctr = 0;
+  s = "a";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_ERROR,
+                                NULL);
+  g_smtp_test_err_calloc_ctr = -1;
+
+  /* smtp_str_getdelimfd_set_line_and_buf - 2 */
+  g_smtp_test_err_calloc_ctr = 0;
+  s = "a\na";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_ERROR,
+                                NULL);
+  g_smtp_test_err_calloc_ctr = -1;
+
+  /* realloc */
+  g_smtp_test_err_realloc_ctr = 0;
+  s = "a";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_ERROR,
+                                NULL);
+  g_smtp_test_err_realloc_ctr = -1;
+
+  /* fread */
+  g_smtp_test_getdelimfd_fp_fail = 1;
+  s = "a";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_ERROR,
+                                NULL);
+  g_smtp_test_getdelimfd_fp_fail = 0;
 }
 
 /**
