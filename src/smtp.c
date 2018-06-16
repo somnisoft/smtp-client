@@ -35,6 +35,7 @@
  * getaddrinfo and localtime_r functions.
  */
 # define _POSIX_C_SOURCE 200112L
+# include <netinet/in.h>
 # include <sys/select.h>
 # include <sys/socket.h>
 # include <netdb.h>
