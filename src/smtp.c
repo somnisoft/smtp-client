@@ -2242,7 +2242,7 @@ smtp_attachment_validate_name(const char *const name){
  * Special flag value for the SMTP context used to determine if the initial
  * memory allocation failed to create the context.
  */
-#define SMTP_FLAG_INVALID_MEMORY 0xFFFFFFFF
+#define SMTP_FLAG_INVALID_MEMORY (enum smtp_flag)(0xFFFFFFFF)
 
 /**
  * Open a connection to an SMTP server and return the context.
@@ -2557,7 +2557,7 @@ smtp_status_code_get(const struct smtp *const smtp){
 enum smtp_status_code
 smtp_status_code_set(struct smtp *const smtp,
                      enum smtp_status_code status_code){
-  if(status_code < 0 || status_code >= SMTP_STATUS__LAST){
+  if((unsigned)status_code >= SMTP_STATUS__LAST){
     return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
   }
   smtp->status_code = status_code;
@@ -2603,7 +2603,7 @@ smtp_status_code_errstr(enum smtp_status_code status_code){
     "Unknown error"
   };
 
-  if(status_code < 0 || status_code > SMTP_STATUS__LAST){
+  if((unsigned)status_code > SMTP_STATUS__LAST){
     status_code = SMTP_STATUS__LAST;
   }
   return status_code_err_str[status_code];
