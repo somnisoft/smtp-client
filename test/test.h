@@ -30,6 +30,7 @@
 #ifndef SMTP_TEST_H
 #define SMTP_TEST_H
 
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
