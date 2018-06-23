@@ -649,36 +649,95 @@ smtp_unit_test_all_str_replace(void){
 }
 
 /**
- * Test harness for @ref smtp_strnlen.
+ * Run all tests for @ref smtp_utf8_charlen.
+ */
+static void
+smtp_unit_test_all_smtp_utf8_charlen(void){
+  const char *utf8_str;
+
+  assert(smtp_utf8_charlen('a') == 1);
+
+  utf8_str = "щ";
+  assert(smtp_utf8_charlen(utf8_str[0]) == 2);
+
+  utf8_str = "€";
+  assert(smtp_utf8_charlen(utf8_str[0]) == 3);
+
+  utf8_str = "𠜎";
+  assert(smtp_utf8_charlen(utf8_str[0]) == 4);
+}
+
+/**
+ * Run all tests for @ref smtp_str_has_nonascii_utf8.
+ */
+static void
+smtp_unit_test_all_smtp_str_has_nonascii_utf8(void){
+  assert(smtp_str_has_nonascii_utf8("") == 0);
+  assert(smtp_str_has_nonascii_utf8("abc") == 0);
+  assert(smtp_str_has_nonascii_utf8("?") == 0);
+  assert(smtp_str_has_nonascii_utf8("щ") == 1);
+  assert(smtp_str_has_nonascii_utf8("abщ") == 1);
+}
+
+/**
+ * Test harness for @ref smtp_strnlen_utf8.
  *
- * @param[in] s      Null-terminated string.
+ * @param[in] s      UTF-8 string.
  * @param[in] maxlen Do not check more than @p maxlen bytes of string @p s.
  * @param[in] expect Expected string length.
  */
 static void
-smtp_unit_test_strnlen(const char *s,
-                       size_t maxlen,
-                       size_t expect){
+smtp_unit_test_strnlen_utf8(const char *s,
+                            size_t maxlen,
+                            size_t expect){
   size_t slen;
 
-  slen = smtp_strnlen(s, maxlen);
+  slen = smtp_strnlen_utf8(s, maxlen);
   assert(slen == expect);
 }
 
 /**
- * Run all tests for @ref smtp_strnlen.
+ * Run all tests for @ref smtp_strnlen_utf8.
  */
 static void
-smtp_unit_test_all_strnlen(void){
-  smtp_unit_test_strnlen(""  , 0, 0);
-  smtp_unit_test_strnlen(""  , 1, 0);
-  smtp_unit_test_strnlen("a" , 0, 0);
-  smtp_unit_test_strnlen("a" , 1, 1);
-  smtp_unit_test_strnlen("a" , 2, 1);
-  smtp_unit_test_strnlen("ab", 0, 0);
-  smtp_unit_test_strnlen("ab", 1, 1);
-  smtp_unit_test_strnlen("ab", 2, 2);
-  smtp_unit_test_strnlen("ab", 3, 2);
+smtp_unit_test_all_strnlen_utf8(void){
+  smtp_unit_test_strnlen_utf8(""  , 0, 0);
+  smtp_unit_test_strnlen_utf8(""  , 1, 0);
+  smtp_unit_test_strnlen_utf8("a" , 0, 0);
+  smtp_unit_test_strnlen_utf8("a" , 1, 1);
+  smtp_unit_test_strnlen_utf8("a" , 2, 1);
+  smtp_unit_test_strnlen_utf8("ab", 0, 0);
+  smtp_unit_test_strnlen_utf8("ab", 1, 1);
+  smtp_unit_test_strnlen_utf8("ab", 2, 2);
+  smtp_unit_test_strnlen_utf8("ab", 3, 2);
+
+  smtp_unit_test_strnlen_utf8("щ", 0, 0);
+  smtp_unit_test_strnlen_utf8("щ", 1, 2);
+  smtp_unit_test_strnlen_utf8("щ", 2, 2);
+  smtp_unit_test_strnlen_utf8("щ", 3, 2);
+
+  smtp_unit_test_strnlen_utf8("€", 0, 0);
+  smtp_unit_test_strnlen_utf8("€", 1, 3);
+  smtp_unit_test_strnlen_utf8("€", 2, 3);
+  smtp_unit_test_strnlen_utf8("€", 3, 3);
+
+  smtp_unit_test_strnlen_utf8("€€", 0, 0);
+  smtp_unit_test_strnlen_utf8("€€", 1, 3);
+  smtp_unit_test_strnlen_utf8("€€", 2, 3);
+  smtp_unit_test_strnlen_utf8("€€", 3, 3);
+  smtp_unit_test_strnlen_utf8("€€", 4, 6);
+  smtp_unit_test_strnlen_utf8("€€", 5, 6);
+  smtp_unit_test_strnlen_utf8("€€", 6, 6);
+  smtp_unit_test_strnlen_utf8("€€", 7, 6);
+
+  smtp_unit_test_strnlen_utf8("𠜎", 0, 0);
+  smtp_unit_test_strnlen_utf8("𠜎", 1, 4);
+  smtp_unit_test_strnlen_utf8("𠜎", 2, 4);
+  smtp_unit_test_strnlen_utf8("𠜎", 3, 4);
+
+  /* Invalid UTF-8 sequences. */
+  smtp_unit_test_strnlen_utf8("\xBF", 3, -1);
+  smtp_unit_test_strnlen_utf8("\xC0", 3, -1);
 }
 
 /**
@@ -735,9 +794,30 @@ smtp_unit_test_all_chunk_split(void){
                              "\r\n",
                              "abcdefghij\r\nklmnopqrst\r\nuvwxyz\r\n");
 
+  /*
+   * UTF-8 characters
+   * щ - 2 bytes
+   * € - 3 bytes
+   * 𠜎 - 4 bytes
+   */
+  smtp_unit_test_chunk_split("€€€", 1, "\r\n", "€\r\n€\r\n€\r\n");
+  smtp_unit_test_chunk_split("€€€€€", 1, "\r\n", "€\r\n€\r\n€\r\n€\r\n€\r\n");
+  smtp_unit_test_chunk_split("a€c", 1, "-", "a-€-c-");
+  smtp_unit_test_chunk_split("a€c", 2, "-", "a€-c-");
+  smtp_unit_test_chunk_split("€€€", 3, "-", "€-€-€-");
+  smtp_unit_test_chunk_split("щbc", 3, "-", "щb-c-");
+  smtp_unit_test_chunk_split("щbc", 4, "-", "щbc-");
+  smtp_unit_test_chunk_split("aщ€𠜎e", 2, "-", "aщ-€-𠜎-e-");
+  smtp_unit_test_chunk_split("aщ€𠜎e", 4, "-", "aщ€-𠜎-e-");
+
+  /* Memory allocation failure. */
   g_smtp_test_err_calloc_ctr = 0;
   smtp_unit_test_chunk_split("abc", 1, "-", NULL);
   g_smtp_test_err_calloc_ctr = -1;
+
+  /* Invalid UTF-8 characters. */
+  smtp_unit_test_chunk_split("\xBF", 1, "-", NULL);
+  smtp_unit_test_chunk_split("\xC0", 1, "-", NULL);
 }
 
 /**
@@ -999,9 +1079,9 @@ static void
 smtp_unit_test_all_smtp_header_value_validate(void){
   assert(smtp_header_value_validate(STR_ALPHABET_LOWERCASE) == 0);
   assert(smtp_header_value_validate("a\tb c") == 0);
-  assert(smtp_header_value_validate("īḑȋᵭ") == -1);
+  assert(smtp_header_value_validate("īḑȋᵭ") == 0);
+  assert(smtp_header_value_validate("a\xff") == 0);
   assert(smtp_header_value_validate("a\nb\nc") == -1);
-  assert(smtp_header_value_validate("a\xff") == -1);
 }
 
 /**
@@ -1282,7 +1362,9 @@ smtp_unit_test_all(void){
   smtp_unit_test_all_bin2hex();
   smtp_unit_test_all_strdup();
   smtp_unit_test_all_str_replace();
-  smtp_unit_test_all_strnlen();
+  smtp_unit_test_all_smtp_utf8_charlen();
+  smtp_unit_test_all_smtp_str_has_nonascii_utf8();
+  smtp_unit_test_all_strnlen_utf8();
   smtp_unit_test_all_chunk_split();
   smtp_unit_test_all_file_get_contents();
   smtp_unit_test_all_parse_cmd_line();

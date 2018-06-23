@@ -81,9 +81,15 @@ smtp_str_replace(const char *const search,
             const char *const replace,
             const char *const s);
 
-size_t
-smtp_strnlen(const char *s,
-             size_t maxlen);
+int
+smtp_utf8_charlen(unsigned char c);
+
+int
+smtp_str_has_nonascii_utf8(const char *const s);
+
+ssize_t
+smtp_strnlen_utf8(const char *s,
+                  size_t maxlen);
 
 char *
 smtp_chunk_split(const char *const s,

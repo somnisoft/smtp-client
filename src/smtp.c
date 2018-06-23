@@ -820,21 +820,93 @@ smtp_bin2hex(const unsigned char *const s,
 #endif /* SMTP_OPENSSL */
 
 /**
- * Get the number of bytes in a null-terminated string, or a shorter count if
+ * Get the length in bytes of the current UTF-8 character.
+ *
+ * This consists of a very simple check and assumes the user provides a valid
+ * UTF-8 byte sequence. It gets the length from the first byte in the sequence
+ * and does not validate any other bytes in the character sequence or any other
+ * bits in the first byte of the character sequence.
+ *
+ * @param[in] c The first byte in a valid UTF-8 character sequence.
+ * @retval >0 Number of bytes for the current UTF-8 character sequence.
+ * @retval  0 Invalid byte sequence.
+ */
+SMTP_LINKAGE int
+smtp_utf8_charlen(unsigned char c){
+  if((c & 0x80) == 0){         /* 0XXXXXXX */
+    return 1;
+  }
+  else if((c & 0xE0) == 0xC0){ /* 110XXXXX */
+    return 2;
+  }
+  else if((c & 0xF0) == 0xE0){ /* 1110XXXX */
+    return 3;
+  }
+  else if((c & 0xF8) == 0xF0){ /* 11110XXX */
+    return 4;
+  }
+  else{                        /* invalid  */
+    return -1;
+  }
+}
+
+/**
+ * Check if a string contains non-ASCII UTF-8 characters.
+ *
+ * Uses the simple algorithm from @ref smtp_utf8_charlen to check for
+ * UTF-8 characters.
+ *
+ * @param[in] s UTF-8 string.
+ * @retval 1 String contains non-ASCII UTF-8 characters.
+ * @retval 0 String contains only ASCII characters.
+ */
+SMTP_LINKAGE int
+smtp_str_has_nonascii_utf8(const char *const s){
+  int i;
+  int charlen;
+
+  for(i = 0; s[i]; i++){
+    charlen = smtp_utf8_charlen(s[i]);
+    if(charlen != 1){
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Get the number of bytes in a UTF-8 string, or a shorter count if
  * the string exceeds a maximum specified length.
  *
- * @param[in] s      Null-terminated string.
- * @param[in] maxlen Do not check more than @p maxlen bytes of string @p s.
+ * See @p maxlen for more information on multi-byte parsing.
+ *
+ * @param[in] s      Null-terminated UTF-8 string.
+ * @param[in] maxlen Do not check more than @p maxlen bytes of string @p s
+ *                   except if in the middle of a multi-byte character.
  * @retval strlen(s) If length of s has less bytes than maxlen or the same
- *                   number of bytes as maxlen.
+ *                   number of bytes as maxlen. See @p maxlen for more details.
  * @retval maxlen    If length of s has more bytes than maxlen.
+ * @retval -1        If @p s contains an invalid UTF-8 byte sequence.
  */
-SMTP_LINKAGE size_t
-smtp_strnlen(const char *s,
-             size_t maxlen){
+SMTP_LINKAGE ssize_t
+smtp_strnlen_utf8(const char *s,
+                  size_t maxlen){
   size_t i;
-  for(i = 0; *s && i < maxlen; i++){
-    s += 1;
+  int utf8_i;
+  int utf8_len;
+
+  for(i = 0; *s && i < maxlen; i += utf8_len){
+    utf8_len = smtp_utf8_charlen(*s);
+    if(utf8_len < 0){
+      return -1;
+    }
+
+    for(utf8_i = 0; utf8_i < utf8_len; utf8_i++){
+      if(!*s){
+        return -1;
+      }
+      s += 1;
+    }
   }
   return i;
 }
@@ -860,7 +932,7 @@ smtp_chunk_split(const char *const s,
   size_t chunk_i;
   size_t snew_i;
   size_t body_i;
-  size_t body_copy_len;
+  ssize_t body_copy_len;
 
   if(chunklen < 1){
     errno = EINVAL;
@@ -883,13 +955,18 @@ smtp_chunk_split(const char *const s,
   body_i = 0;
   snew_i = 0;
   for(chunk_i = 0; chunk_i < bodylen / chunklen + 1; chunk_i++){
-    body_i = chunk_i * chunklen;
-    body_copy_len = smtp_strnlen(&s[body_i], chunklen);
+    body_copy_len = smtp_strnlen_utf8(&s[body_i], chunklen);
+    if(body_copy_len < 0){
+      free(snew);
+      errno = EINVAL;
+      return NULL;
+    }
     memcpy(&snew[snew_i], &s[body_i], body_copy_len);
     snew_i += body_copy_len;
     if(s[body_i] == '\0'){
       snew_i += 1;
     }
+    body_i += body_copy_len;
 
     if(endlen > 0){
       memcpy(&snew[snew_i], end, endlen);
@@ -1824,7 +1901,7 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
           "--"
           "%s" /* boundary */
           "\r\n"
-          "Content-Type: text/plain\r\n"
+          "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
           "\r\n"
           "%s" /* data_double_dot */
           "\r\n"
@@ -2052,14 +2129,26 @@ static int
 smtp_mail_envelope_header(struct smtp *const smtp,
                           const char *const header,
                           const struct smtp_address *const address){
+  const char *const SMTPUTF8 = " SMTPUTF8";
   size_t bufsz;
   char *envelope_address;
+  const char *smtputf8_opt;
 
-  bufsz = 14 + strlen(address->email) + 1;
+  bufsz = 14 + strlen(address->email) + strlen(SMTPUTF8) + 1;
   if((envelope_address = malloc(bufsz)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
-  sprintf(envelope_address, "%s:<%s>\r\n", header, address->email);
+
+  smtputf8_opt = "";
+  if(smtp_str_has_nonascii_utf8(address->email)){
+    smtputf8_opt = SMTPUTF8;
+  }
+
+  sprintf(envelope_address,
+          "%s:<%s>%s\r\n",
+          header,
+          address->email,
+          smtputf8_opt);
   smtp_puts(smtp, envelope_address);
   free(envelope_address);
 
@@ -2151,7 +2240,7 @@ smtp_header_key_validate(const char *const key){
 }
 
 /**
- * Must consist only of printable US-ASCII, space, or horizontal tab.
+ * Must consist only of printable character, space, or horizontal tab.
  *
  * @param[in] value Header value to validate.
  * @retval  0 Successful validation.
@@ -2160,10 +2249,13 @@ smtp_header_key_validate(const char *const key){
 SMTP_LINKAGE int
 smtp_header_value_validate(const char *const value){
   size_t i;
+  unsigned char c;
 
   for(i = 0; value[i]; i++){
-    if((value[i] < ' ' || value[i] > 126) &&
-        value[i] != '\t'){
+    c = value[i];
+    if((c < ' ' || c > 126) &&
+        c != '\t' &&
+        c < 0x80){ /* Allow UTF-8 byte sequence. */
       return -1;
     }
   }
