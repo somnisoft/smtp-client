@@ -1,46 +1,45 @@
-<title>smtp-client</title>
+# smtp-client
 
-<h1>smtp-client</h1>
 This is an SMTP client library written in C which can get included
 directly into another program.
 
-This library has been released into the public domain using
-[https://creativecommons.org/publicdomain/zero/1.0/ | CC0]
-.
+This library has been released into the public domain using [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 
-Feature list:
-  *  C89
-  *  Cross-platform (POSIX, BSD, MacOS, Windows)
-  *  Send attachments
-  *  Send custom email headers
-  *  Specify multiple TO, CC, and BCC recipients
-  *  Simple API and simple error handling (see Examples section below)
-  *  Optional OpenSSL TLS connection and authentication methods
-  *  TODO (almost completed): Test cases with 100% code and branch coverage
-  *  Doxygen with 100% documentation including the test code
-  *  Free software (permissive - CC0)
+Official repository location:
+[www.somnisoft.com/smtp-client](https://www.somnisoft.com/smtp-client)
 
-This library supports the following connection methods:
-  *  No encryption
-  *  STARTTLS (requires OpenSSL)
-  *  TLS direct connection (deprecated - requires OpenSSL)
+## Feature list
+* C89
+* Cross-platform (POSIX, BSD, MacOS, Windows)
+* Send attachments
+* Send custom email headers
+* Specify multiple TO, CC, and BCC recipients
+* Simple API and simple error handling (see Examples section below)
+* Optional OpenSSL TLS connection and authentication methods
+* TODO (almost completed): Test cases with 100% code and branch coverage
+* Doxygen with 100% documentation including the test code
+* Free software (permissive - CC0)
 
-This library supports the following authentication methods:
-  *  none
-  *  PLAIN
-  *  LOGIN
-  *  CRAM-MD5 (requires OpenSSL)
+Supports the following connection methods:
+* No encryption
+* STARTTLS (requires OpenSSL)
+* TLS direct connection (deprecated - requires OpenSSL)
+
+Supports the following authentication methods:
+* none
+* PLAIN
+* LOGIN
+* CRAM-MD5 (requires OpenSSL)
 
 To include the library into your application, simply copy the src/smtp.h and
 src/smtp.c files into your project directory. Then include the smtp.h header
 into your C file, compile smtp.c, and include the resulting object file into
 the build system.
 
-<h1>Examples</h1>
+## Examples
 The following example code demonstrates how to use the library.
 
-<pre>
-<code>
+```C
 #include <stdio.h>
 #include "smtp.h"
 #define MAIL_SERVER              "mail.example.com"
@@ -91,19 +90,18 @@ int main(void)
   }
   return 0;
 }
-</code>
-</pre>
+```
 
 Place the code snippet above into a file named 'test.c' and change each #define
 to the appropriate values for your mail server. Then copy smtp.c and smtp.h
 into the same directory and run the following commands to compile with OpenSSL
 support.
 
-<kbd>cc -DSMTP_OPENSSL smtp.c -c -o smtp.o</kbd>
+cc -DSMTP_OPENSSL smtp.c -c -o smtp.o
 
-<kbd>cc -DSMTP_OPENSSL test.c -c -o test.o</kbd>
+cc -DSMTP_OPENSSL test.c -c -o test.o
 
-<kbd>cc test.o smtp.o -o smtp_test -lssl -lcrypto</kbd>
+cc test.o smtp.o -o smtp_test -lssl -lcrypto
 
 If you do not need OpenSSL support, remove the -DSMTP_OPENSSL and the
 -lssl and -lcrypto arguments. The commands as above should create an
@@ -119,20 +117,6 @@ resetting the error condition using smtp_status_code_set. However, make sure to
 review the smtp_status_code_set function prior to using that option for
 clearing the error message to avoid any undefined behavior.
 
-An existing C++ wrapper has been created which uses this library. See
-[/file/src/SMTPMail.h | SMTPMail.h]
-and
-[/file/src/SMTPMail.cpp | SMTPMail.cpp]
-for more details.
-
-<h1>Technical Documentation</h1>
-See the
-[https://www.somnisoft.com/smtp-client/technical-documentation/index.html|Technical Documentation]
-generated from Doxygen.
-
-<h1>Contact</h1>
-If you have any questions, comments, suggestions or feature requests, please
-send an email to
-<a href='mailto:mail@somnisoft.com'>mail@somnisoft.com</a>
-.
+## Technical Documentation
+See the [Technical Documentation](https://www.somnisoft.com/smtp-client/technical-documentation/index.html) generated from Doxygen.
 
