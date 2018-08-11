@@ -92,6 +92,11 @@
 #define SMTP_TEST_DEFAULT_FLAGS               (SMTP_DEBUG | SMTP_NO_CERT_VERIFY)
 
 /**
+ * Use the default certificate path for OpenSSL.
+ */
+#define SMTP_TEST_DEFAULT_CAFILE              NULL
+
+/**
  * Some unit tests use this for testing encoding or splitting long strings.
  */
 #define STR_ALPHABET_LOWERCASE "abcdefghijklmnopqrstuvwxyz"
@@ -1586,6 +1591,7 @@ test_smtp_open_default(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -1627,6 +1633,7 @@ smtp_func_test_all_status_code_get(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -1653,6 +1660,7 @@ smtp_func_test_all_status_code_get(struct smtp_test_config *const config){
  * @param[in] connection_security Connection security settings.
  * @param[in] flags               Miscellaneous configuration flags.
  * @param[in] auth_method         Authentication method.
+ * @param[in] cafile              Path to certificate file.
  * @param[in] subject             Email subject line.
  * @param[in] body                Email body.
  */
@@ -1662,6 +1670,7 @@ smtp_func_test_send_email(struct smtp_test_config *const config,
                           enum smtp_connection_security connection_security,
                           enum smtp_flag flags,
                           enum smtp_authentication_method auth_method,
+                          const char *const cafile,
                           const char *const subject,
                           const char *const body){
   int rc;
@@ -1670,6 +1679,7 @@ smtp_func_test_send_email(struct smtp_test_config *const config,
                  port,
                  connection_security,
                  flags,
+                 cafile,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -1723,6 +1733,7 @@ smtp_func_test_connection_security(struct smtp_test_config *const config,
                             con_security,
                             SMTP_TEST_DEFAULT_FLAGS,
                             SMTP_TEST_DEFAULT_AUTH_METHOD,
+                            SMTP_TEST_DEFAULT_CAFILE,
                             config->subject,
                             config->body);
 }
@@ -1750,6 +1761,26 @@ smtp_func_test_all_connection_security(struct smtp_test_config *const config){
 }
 
 /**
+ * Send a test email with a self-signed certificate file specified in the
+ * cafile parameter.
+ *
+ * @param[in] config Server connection details.
+ */
+static void
+smtp_func_test_all_cafile(struct smtp_test_config *const config){
+  const char *const PATH_CERT = "test/config/dovecot.pem";
+
+  smtp_func_test_send_email(config,
+                            config->port,
+                            SMTP_SECURITY_STARTTLS,
+                            SMTP_DEBUG,
+                            SMTP_TEST_DEFAULT_AUTH_METHOD,
+                            PATH_CERT,
+                            "SMTP Test: cafile",
+                            PATH_CERT);
+}
+
+/**
  * Send a test email with a specific authentication method.
  *
  * @param[in] config           Server connection details.
@@ -1772,6 +1803,7 @@ smtp_func_test_auth(struct smtp_test_config *const config,
                             SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                             SMTP_TEST_DEFAULT_FLAGS,
                             auth_method,
+                            SMTP_TEST_DEFAULT_CAFILE,
                             config->subject,
                             config->body);
 }
@@ -1813,6 +1845,7 @@ smtp_func_test_attachment_path(struct smtp_test_config *const config,
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -1874,6 +1907,7 @@ smtp_func_test_attachment_fp(struct smtp_test_config *const config,
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -1932,6 +1966,7 @@ smtp_func_test_attachment_mem(struct smtp_test_config *const config,
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2045,6 +2080,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2213,6 +2249,7 @@ smtp_func_test_header_custom_date(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2263,6 +2300,7 @@ smtp_func_test_header_null_no_date(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2322,6 +2360,7 @@ smtp_func_test_all_nodebug(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_NO_CERT_VERIFY,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2368,6 +2407,7 @@ test_failure_misc(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_OK);
@@ -2390,6 +2430,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_calloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -2401,6 +2442,7 @@ test_failure_open(struct smtp_test_config *const config){
                  NULL,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_CONNECT);
   rc = smtp_close(config->smtp);
@@ -2412,6 +2454,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_socket_ctr = -1;
   assert(rc == SMTP_STATUS_CONNECT);
@@ -2424,6 +2467,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_connect_ctr = -1;
   assert(rc == SMTP_STATUS_CONNECT);
@@ -2436,6 +2480,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_ctx_new_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2448,6 +2493,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_err_peek_error_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2460,6 +2506,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_new_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2472,6 +2519,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_bio_new_socket_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2484,6 +2532,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_connect_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2496,6 +2545,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_do_handshake_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2510,6 +2560,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_DEBUG,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_HANDSHAKE);
   rc = smtp_close(config->smtp);
@@ -2524,6 +2575,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_DEBUG,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_get_peer_certificate_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2539,6 +2591,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_TLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_ctx_new_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2551,6 +2604,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_recv_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2563,6 +2617,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_send_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2575,6 +2630,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_send_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2587,6 +2643,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_recv_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2599,6 +2656,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2613,6 +2671,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_read_ctr = -1;
   g_smtp_test_err_bio_should_retry_ctr = -1;
@@ -2629,6 +2688,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_ssl_read_ctr = -1;
   g_smtp_test_err_bio_should_retry_ctr = -1;
@@ -2644,6 +2704,7 @@ test_failure_open(struct smtp_test_config *const config){
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   g_smtp_test_err_recv_ctr = -1;
   g_smtp_test_err_recv_rc = -1;
@@ -2666,6 +2727,7 @@ test_failure_address_add(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2742,6 +2804,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2836,6 +2899,7 @@ test_failure_header_add(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -2904,6 +2968,7 @@ test_failure_status_code_set(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -3173,6 +3238,7 @@ test_failure_close(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
   g_smtp_test_err_send_ctr = 0;
@@ -3187,6 +3253,7 @@ test_failure_close(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
   g_smtp_test_err_close_ctr = 0;
@@ -3568,6 +3635,7 @@ test_failure_timeout(struct smtp_test_config *const config){
                  config->port,
                  SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
                  SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
@@ -3628,6 +3696,7 @@ smtp_func_test_postfix(void){
 
   smtp_func_test_all_status_code_get(&config);
   smtp_func_test_all_connection_security(&config);
+  smtp_func_test_all_cafile(&config);
   smtp_func_test_all_auth_methods(&config);
   smtp_func_test_all_attachments(&config);
   smtp_func_test_all_address(&config);
@@ -3655,6 +3724,7 @@ smtp_func_test_gmail(void){
                             SMTP_SECURITY_STARTTLS,
                             SMTP_DEBUG,
                             SMTP_AUTH_PLAIN,
+                            SMTP_TEST_DEFAULT_CAFILE,
                             "SMTP Test: gmail",
                             "test email sent through gmail server");
 }

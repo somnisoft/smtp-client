@@ -232,6 +232,7 @@ mailx_send(struct mailx *const mailx){
             mailx->port,
             mailx->connection_security,
             mailx->smtp_flags,
+            NULL,
             &mailx->smtp);
 
   smtp_auth(mailx->smtp,

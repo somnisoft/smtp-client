@@ -212,6 +212,7 @@ smtp_open(const char *const server,
           const char *const port,
           enum smtp_connection_security connection_security,
           enum smtp_flag flags,
+          const char *const cafile,
           struct smtp **smtp);
 
 enum smtp_status_code

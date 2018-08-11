@@ -29,7 +29,12 @@ void SMTPMail::open(const char *const server,
                     const char *const port,
                     enum smtp_connection_security connection_security,
                     enum smtp_flag flags){
-  this->rc = smtp_open(server, port, connection_security, flags, &this->smtp);
+  this->rc = smtp_open(server,
+                       port,
+                       connection_security,
+                       flags,
+                       NULL,
+                       &this->smtp);
   this->throw_bad_status_code();
 }
 

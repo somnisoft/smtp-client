@@ -58,6 +58,7 @@ test_nossl_smtp(void){
                  "25",
                  SMTP_SECURITY_NONE,
                  SMTP_DEBUG,
+                 NULL,
                  &smtp);
   assert(rc == SMTP_STATUS_OK);
 

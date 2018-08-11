@@ -213,13 +213,21 @@ struct smtp{
    */
   int tls_on;
 
+  /**
+   * Path to certificate file if using self-signed or untrusted certificate
+   * not in the default key store.
+   */
+  const char *cafile;
+
 #ifdef SMTP_OPENSSL
   /**
    * OpenSSL TLS object.
    */
   SSL *tls;
 
-  /**OpenSSL TLS context. */
+  /**
+   * OpenSSL TLS context.
+   */
   SSL_CTX *tls_ctx;
 
   /**
@@ -1354,10 +1362,22 @@ smtp_tls_init(struct smtp *const smtp,
     SSL_CTX_set_verify(smtp->tls_ctx, SSL_VERIFY_PEER, NULL);
   }
 
-  X509_STORE_set_default_paths(SSL_CTX_get_cert_store(smtp->tls_ctx));
-  if(ERR_peek_error() != 0){
-    SSL_CTX_free(smtp->tls_ctx);
-    return -1;
+  /*
+   * Set the path to the user-provided CA file or use the default cert paths
+   * if not provided.
+   */
+  if(smtp->cafile){
+    if(SSL_CTX_load_verify_locations(smtp->tls_ctx, smtp->cafile, NULL) != 1){
+      SSL_CTX_free(smtp->tls_ctx);
+      return -1;
+    }
+  }
+  else{
+    X509_STORE_set_default_paths(SSL_CTX_get_cert_store(smtp->tls_ctx));
+    if(ERR_peek_error() != 0){
+      SSL_CTX_free(smtp->tls_ctx);
+      return -1;
+    }
   }
 
   if((smtp->tls = SSL_new(smtp->tls_ctx)) == NULL){
@@ -2372,6 +2392,8 @@ smtp_attachment_validate_name(const char *const name){
  * @param[in]  port                Server port number.
  * @param[in]  connection_security See @ref smtp_connection_security.
  * @param[in]  flags               See @ref smtp_flag.
+ * @param[in]  cafile              Path to certificate file, or NULL to use
+ *                                 certificates in the default path.
  * @param[out] smtp                Pointer to a new SMTP context which will
  *                                 always have a valid state even if memory
  *                                 allocation fails. When finished, the caller
@@ -2384,6 +2406,7 @@ smtp_open(const char *const server,
           const char *const port,
           enum smtp_connection_security connection_security,
           enum smtp_flag flags,
+          const char *const cafile,
           struct smtp **smtp){
   struct smtp *snew;
 
@@ -2403,6 +2426,7 @@ smtp_open(const char *const server,
   *smtp = snew;
 
   snew->flags = flags;
+  snew->cafile = cafile;
 
   if(smtp_connect(snew, server, port) < 0){
     return smtp_status_code_set(*smtp, SMTP_STATUS_CONNECT);
