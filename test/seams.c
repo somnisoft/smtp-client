@@ -41,6 +41,11 @@ int g_smtp_test_err_bio_new_socket_ctr = -1;
 int g_smtp_test_err_bio_should_retry_ctr = -1;
 
 /**
+ * See @ref g_smtp_test_err_bio_should_retry_rc.
+ */
+int g_smtp_test_err_bio_should_retry_rc = -1;
+
+/**
  * See @ref g_smtp_test_err_calloc_ctr and @ref test_seams_countdown_global.
  */
 int g_smtp_test_err_calloc_ctr = -1;
@@ -106,6 +111,11 @@ int g_smtp_test_err_realloc_ctr = -1;
  * See @ref g_smtp_test_err_recv_ctr and @ref test_seams_countdown_global.
  */
 int g_smtp_test_err_recv_ctr = -1;
+
+/**
+ * See @ref g_smtp_test_err_recv_rc.
+ */
+int g_smtp_test_err_recv_rc = -1;
 
 /**
  * See @ref g_smtp_test_err_recv_bytes and @ref test_seams_countdown_global.
@@ -237,6 +247,9 @@ int
 smtp_test_seam_bio_should_retry(BIO *bio){
   if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_bio_should_retry_ctr)){
     return 0;
+  }
+  if(g_smtp_test_err_bio_should_retry_rc != -1){
+    return g_smtp_test_err_bio_should_retry_rc;
   }
   return BIO_should_retry(bio);
 }
@@ -472,6 +485,9 @@ smtp_test_seam_recv(int socket,
   size_t bytes_inject_len;
 
   if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_recv_ctr)){
+    if(g_smtp_test_err_recv_rc != -1){
+      return g_smtp_test_err_recv_rc;
+    }
     if(*g_smtp_test_err_recv_bytes){
       bytes_inject_len = strlen(g_smtp_test_err_recv_bytes);
       assert(bytes_inject_len < length);

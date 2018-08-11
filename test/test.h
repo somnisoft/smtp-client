@@ -255,6 +255,15 @@ int g_smtp_test_err_bio_new_socket_ctr;
 int g_smtp_test_err_bio_should_retry_ctr;
 
 /**
+ * Value to force the BIO_should_retry() function to return.
+ *
+ * This value will only get returned if
+ * @ref g_smtp_test_err_bio_should_retry_ctr
+ * has a value of 0 and this does not have a value of -1.
+ */
+int g_smtp_test_err_bio_should_retry_rc;
+
+/**
  * Counter for @ref smtp_test_seam_calloc.
  *
  * See @ref test_seams_countdown_global for more details.
@@ -344,6 +353,15 @@ int g_smtp_test_err_realloc_ctr;
  * See @ref test_seams_countdown_global for more details.
  */
 int g_smtp_test_err_recv_ctr;
+
+/**
+ * Value to force the recv() function to return.
+ *
+ * This value will only get returned if
+ * @ref g_smtp_test_err_recv_ctr
+ * has a value of 0 and this does not have a value of -1.
+ */
+int g_smtp_test_err_recv_rc;
 
 /**
  * Set the received bytes in recv() and SSL_read() to this value if it

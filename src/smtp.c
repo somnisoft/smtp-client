@@ -350,7 +350,9 @@ smtp_str_getdelimfd_set_line_and_buf(struct str_getdelimfd *const gdfd,
   memcpy(gdfd->line, gdfd->_buf, copy_len);
   gdfd->line_len = copy_len;
   memmove(gdfd->_buf, gdfd->_buf + copy_len + 1, gdfd->_buf_len - copy_len);
-  gdfd->_buf_len -= copy_len + 1;
+  if(gdfd->_buf_len != 0){
+    gdfd->_buf_len -= copy_len + 1;
+  }
   return 0;
 }
 
@@ -1087,7 +1089,7 @@ smtp_parse_cmd_line(char *const line,
   memcpy(code_str, line, 3);
   code_str[3] = '\0';
   cmd->code = strtoul(code_str, &ep, 10);
-  if(code_str[0] == '\0' || *ep != '\0'){
+  if(*ep != '\0'){
     cmd->code = SMTP_INTERNAL_ERROR;
   }
   cmd->more = line[3] == '-' ? 1 : 0;
@@ -1144,10 +1146,13 @@ smtp_getline(struct smtp *const smtp){
     smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
     return rc;
   }
-  else if(smtp->gdfd.line == NULL || rc == STRING_GETDELIMFD_ERROR){
+  else if(rc == STRING_GETDELIMFD_ERROR){
     smtp_status_code_set(smtp, SMTP_STATUS_RECV);
     return STRING_GETDELIMFD_ERROR;
   }
+
+  /* Remove the carriage-return character ('\r'). */
+  smtp->gdfd.line[smtp->gdfd.line_len - 1] = '\0';
 
   smtp_puts_dbg(smtp, "Server", smtp->gdfd.line);
   return rc;
@@ -2033,6 +2038,10 @@ smtp_print_header(struct smtp *const smtp,
   char *header_concat;
   char *header_fmt;
 
+  if(header->value == NULL){
+    return smtp->status_code;
+  }
+
   concat_len = strlen(header->key) + 2 + strlen(header->value) + 1;
   if((header_concat = malloc(concat_len)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
@@ -2229,13 +2238,22 @@ smtp_header_exists(const struct smtp *const smtp,
  */
 SMTP_LINKAGE int
 smtp_header_key_validate(const char *const key){
+  unsigned c;
   size_t i;
+  size_t keylen;
 
-  for(i = 0; key[i]; i++){
-    if(key[i] <= ' ' || key[i] > 126 || key[i] == ':'){
+  keylen = strlen(key);
+  if(keylen < 1){
+    return -1;
+  }
+
+  for(i = 0; i < keylen; i++){
+    c = key[i];
+    if(c <= ' ' || c > 126 || c == ':'){
       return -1;
     }
   }
+
   return 0;
 }
 
@@ -2468,6 +2486,7 @@ enum smtp_status_code
 smtp_mail(struct smtp *const smtp,
           const char *const body){
   size_t i;
+  int has_mail_from;
   struct smtp_address *address;
   char date[SMTP_DATE_MAX_SZ];
 
@@ -2477,6 +2496,7 @@ smtp_mail(struct smtp *const smtp,
 
   /* MAIL timeout 5 minutes. */
   smtp_set_read_timeout(smtp, 60 * 5);
+  has_mail_from = 0;
   for(i = 0; i < smtp->num_address; i++){
     address = &smtp->address_list[i];
     if(address->type == SMTP_ADDRESS_FROM){
@@ -2485,8 +2505,13 @@ smtp_mail(struct smtp *const smtp,
                                    address) != SMTP_STATUS_OK){
         return smtp->status_code;
       }
+      has_mail_from = 1;
       break;
     }
+  }
+
+  if(!has_mail_from){
+    return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
   }
 
   /* RCPT timeout 5 minutes. */
@@ -2512,9 +2537,6 @@ smtp_mail(struct smtp *const smtp,
 
   /* 354 response to DATA must get returned before we can send the message. */
   if(smtp_read_and_parse_code(smtp) != SMTP_BEGIN_MAIL){
-    if(smtp->status_code != SMTP_STATUS_OK){
-      return smtp->status_code;
-    }
     return smtp_status_code_set(smtp, SMTP_STATUS_SERVER_RESPONSE);
   }
 

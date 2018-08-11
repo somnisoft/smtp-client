@@ -1065,6 +1065,7 @@ smtp_unit_test_all_smtp_attachment_validate_name(void){
 static void
 smtp_unit_test_all_smtp_header_key_validate(void){
   assert(smtp_header_key_validate(STR_ALPHABET_LOWERCASE) == 0);
+  assert(smtp_header_key_validate("") == -1);
   assert(smtp_header_key_validate("īḑȋᵭ") == -1);
   assert(smtp_header_key_validate("a b c") == -1);
   assert(smtp_header_key_validate("a\xff") == -1);
@@ -1162,6 +1163,8 @@ smtp_unit_test_getdelimfd_fp(struct str_getdelimfd *const gdfd,
  * @param[in] nbytes        Number of bytes in @p input_string.
  * @param[in] delim         Delimiter used to split the string.
  * @param[in] expect_rc     Expected return code.
+ * @param[in] null_fp       If set, use a NULL read function pointer. Useful
+                            for testing that error condition.
  * @param[in] expect_pieces Expected list of strings parsed from the file.
  */
 static void
@@ -1169,6 +1172,7 @@ smtp_unit_test_str_getdelimfd(const char *const input_string,
                               size_t nbytes,
                               int delim,
                               enum str_getdelim_retcode expect_rc,
+                              int null_fp,
                               const char *expect_pieces, ...){
   const char *piece;
   enum str_getdelim_retcode rc;
@@ -1195,7 +1199,9 @@ smtp_unit_test_str_getdelimfd(const char *const input_string,
 
   memset(&gdfd, 0, sizeof(gdfd));
   gdfd.delim           = delim;
-  gdfd.getdelimfd_read = smtp_unit_test_getdelimfd_fp;
+  if(!null_fp){
+    gdfd.getdelimfd_read = smtp_unit_test_getdelimfd_fp;
+  }
   gdfd.user_data       = &getdelimfd_fp;
 
   do{
@@ -1237,6 +1243,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "",
                                 NULL);
 
@@ -1245,6 +1252,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "a",
                                 NULL);
 
@@ -1253,6 +1261,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "",
                                 "",
                                 NULL);
@@ -1262,6 +1271,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "a",
                                 "",
                                 NULL);
@@ -1271,6 +1281,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "",
                                 "a",
                                 NULL);
@@ -1280,6 +1291,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "test line 1",
                                 NULL);
 
@@ -1288,6 +1300,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "test line 1",
                                 "",
                                 NULL);
@@ -1297,6 +1310,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "test line 1",
                                 "test line 2",
                                 NULL);
@@ -1306,6 +1320,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_DONE,
+                                0,
                                 "test line 1",
                                 "test line 2",
                                 "test line 3",
@@ -1318,6 +1333,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_ERROR,
+                                0,
                                 NULL);
   g_smtp_test_err_calloc_ctr = -1;
 
@@ -1328,6 +1344,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_ERROR,
+                                0,
                                 NULL);
   g_smtp_test_err_calloc_ctr = -1;
 
@@ -1338,6 +1355,7 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_ERROR,
+                                0,
                                 NULL);
   g_smtp_test_err_realloc_ctr = -1;
 
@@ -1348,8 +1366,12 @@ smtp_unit_test_all_str_getdelimfd(void){
                                 strlen(s),
                                 '\n',
                                 STRING_GETDELIMFD_ERROR,
+                                0,
                                 NULL);
   g_smtp_test_getdelimfd_fp_fail = 0;
+
+  /* getdelimfd_read unset */
+  smtp_unit_test_str_getdelimfd("", 0, '\0', STRING_GETDELIMFD_ERROR, 1, NULL);
 }
 
 /**
@@ -1536,10 +1558,10 @@ smtp_test_config_load_from_file(const char *const config_path,
       smtp_strlcpy(config->email_to, value, sizeof(config->email_to));
     }
     else if(strcmp(key, "email_to_2") == 0){
-      smtp_strlcpy(config->email_to, value, sizeof(config->email_to));
+      smtp_strlcpy(config->email_to_2, value, sizeof(config->email_to_2));
     }
     else if(strcmp(key, "email_to_3") == 0){
-      smtp_strlcpy(config->email_to, value, sizeof(config->email_to));
+      smtp_strlcpy(config->email_to_3, value, sizeof(config->email_to_3));
     }
   }
   smtp_str_list_free(&line_list);
@@ -1583,6 +1605,12 @@ test_smtp_open_default(struct smtp_test_config *const config){
                         SMTP_ADDRESS_CC,
                         config->email_to_2,
                         "Test Email");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_attachment_add_mem(config->smtp,
+                               "test.txt",
+                               "test attachment",
+                               -1);
   assert(rc == SMTP_STATUS_OK);
 }
 
@@ -2022,6 +2050,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
 
   /* Multiple TO addresses. */
   smtp_header_clear_all(config->smtp);
+  smtp_address_clear_all(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "Subject",
                        "SMTP Test: Multiple TO Addresses");
@@ -2047,6 +2076,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
 
   /* One BCC address. */
   smtp_header_clear_all(config->smtp);
+  smtp_address_clear_all(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "Subject",
                        "SMTP Test: BCC Address");
@@ -2067,6 +2097,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
 
   /* One TO and one BCC address. */
   smtp_header_clear_all(config->smtp);
+  smtp_address_clear_all(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "Subject",
                        "SMTP Test: TO and BCC Addresses");
@@ -2092,6 +2123,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
 
   /* One TO, CC, and BCC addresses. */
   smtp_header_clear_all(config->smtp);
+  smtp_address_clear_all(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "Subject",
                        "SMTP Test: TO, CC, and BCC Addresses");
@@ -2122,6 +2154,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
 
   /* No FROM address. */
   smtp_header_clear_all(config->smtp);
+  smtp_address_clear_all(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "Subject",
                        "SMTP Test: No FROM address");
@@ -2133,6 +2166,31 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_mail(config->smtp,
                  "This email should not have a FROM address in the header.");
+  assert(rc == SMTP_STATUS_PARAM);
+  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+
+  /* FROM address contains UTF-8 characters. */
+  smtp_header_clear_all(config->smtp);
+  smtp_address_clear_all(config->smtp);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: From contains UTF-8 characters");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        "smtp-cli€nt-t€st@somnisoft.com",
+                        NULL);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        "Test Email");
+  assert(rc == SMTP_STATUS_OK);
+  /**
+   * @todo email successful queued but not sent.
+   */
+  rc = smtp_mail(config->smtp,
+                 "This email should contain a FROM address with UTF-8.");
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_close(config->smtp);
@@ -2249,6 +2307,72 @@ static void
 smtp_func_test_all_headers(struct smtp_test_config *const config){
   smtp_func_test_header_custom_date(config);
   smtp_func_test_header_null_no_date(config);
+}
+
+/**
+ * Send a test email with debug mode disabled.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_all_nodebug(struct smtp_test_config *const config){
+  int rc;
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_NO_CERT_VERIFY,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  smtp_header_clear_all(config->smtp);
+
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: No Debug Mode");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        NULL);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        "Test Email");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_mail(config->smtp,
+                 "This email sent with debug mode disabled.");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
+ * Test failure or error conditions not covered by any of the other failure
+ * tests.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+test_failure_misc(struct smtp_test_config *const config){
+  int rc;
+
+  /* Memory allocation failure in smtp_puts_debug - the error gets ignored. */
+  g_smtp_test_err_malloc_ctr = 0;
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 &config->smtp);
+  g_smtp_test_err_malloc_ctr = -1;
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
 }
 
 /**
@@ -2378,19 +2502,6 @@ test_failure_open(struct smtp_test_config *const config){
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_HANDSHAKE);
 
-  /* SSL_get_peer_certificate() failure. */
-  /***TODO: verify working*/
-  g_smtp_test_err_ssl_get_peer_certificate_ctr = 0;
-  rc = smtp_open(config->server,
-                 config->port,
-                 SMTP_SECURITY_STARTTLS,
-                 SMTP_DEBUG,
-                 &config->smtp);
-  g_smtp_test_err_ssl_get_peer_certificate_ctr = -1;
-  assert(rc == SMTP_STATUS_HANDSHAKE);
-  rc = smtp_close(config->smtp);
-  assert(rc == SMTP_STATUS_HANDSHAKE);
-
   /*
    * Ensure self-signed certificate throws an error. This error will occur by
    * default since the test server uses a self-signed certificate.
@@ -2400,6 +2511,21 @@ test_failure_open(struct smtp_test_config *const config){
                  SMTP_SECURITY_STARTTLS,
                  SMTP_DEBUG,
                  &config->smtp);
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+
+  /*
+   * SSL_get_peer_certificate() failure.
+   * @todo This fails on SSL_connect because local server uses self-signed certificate.
+   */
+  g_smtp_test_err_ssl_get_peer_certificate_ctr = 0;
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_SECURITY_STARTTLS,
+                 SMTP_DEBUG,
+                 &config->smtp);
+  g_smtp_test_err_ssl_get_peer_certificate_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2482,6 +2608,7 @@ test_failure_open(struct smtp_test_config *const config){
   /* Failure in @ref BIO_should_retry. */
   g_smtp_test_err_ssl_read_ctr = 0;
   g_smtp_test_err_bio_should_retry_ctr = 0;
+  g_smtp_test_err_bio_should_retry_rc = -1;
   rc = smtp_open(config->server,
                  config->port,
                  SMTP_SECURITY_STARTTLS,
@@ -2489,6 +2616,37 @@ test_failure_open(struct smtp_test_config *const config){
                  &config->smtp);
   g_smtp_test_err_ssl_read_ctr = -1;
   g_smtp_test_err_bio_should_retry_ctr = -1;
+  g_smtp_test_err_bio_should_retry_rc = -1;
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+
+  /* Failure in @ref SSL_Read but re-reading caused by @ref BIO_should_retry. */
+  g_smtp_test_err_ssl_read_ctr = 0;
+  g_smtp_test_err_bio_should_retry_ctr = -1;
+  g_smtp_test_err_bio_should_retry_rc = 1;
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_SECURITY_STARTTLS,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 &config->smtp);
+  g_smtp_test_err_ssl_read_ctr = -1;
+  g_smtp_test_err_bio_should_retry_ctr = -1;
+  g_smtp_test_err_bio_should_retry_rc = -1;
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  /* Test server prematurely ending the connection with no bytes to read. */
+  g_smtp_test_err_recv_ctr = 2;
+  g_smtp_test_err_recv_rc = 0;
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_SECURITY_STARTTLS,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 &config->smtp);
+  g_smtp_test_err_recv_ctr = -1;
+  g_smtp_test_err_recv_rc = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_HANDSHAKE);
@@ -2762,8 +2920,6 @@ test_failure_status_code_set(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_OK);
 }
 
-/***TODO: ensure all of these test cases correct */
-
 /**
  * Test different error conditions in the @ref smtp_mail function.
  *
@@ -2811,10 +2967,7 @@ test_failure_mail(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_RECV);
   smtp_close(config->smtp);
 
-  /*
-   * Memory allocation failure in the second call to
-   * @ref smtp_mail_envelope_header.
-   */
+  /* Send failure in the second call to @ref smtp_mail_envelope_header. */
   test_smtp_open_default(config);
   g_smtp_test_err_send_ctr = 1;
   g_smtp_test_err_ssl_write_ctr = 1;
@@ -2826,12 +2979,22 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Failed to send DATA command. */
   test_smtp_open_default(config);
-  g_smtp_test_err_send_ctr = 2;
-  g_smtp_test_err_ssl_write_ctr = 2;
+  g_smtp_test_err_send_ctr = 3;
+  g_smtp_test_err_ssl_write_ctr = 3;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_SEND);
+  smtp_close(config->smtp);
+
+  /* Failed to read response to DATA command. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_recv_ctr = 3;
+  g_smtp_test_err_ssl_read_ctr = 3;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_recv_ctr = -1;
+  g_smtp_test_err_ssl_read_ctr = -1;
+  assert(rc == SMTP_STATUS_SERVER_RESPONSE);
   smtp_close(config->smtp);
 
   /* Failed to generate date string in @ref smtp_date_rfc_2822. */
@@ -2866,7 +3029,7 @@ test_failure_mail(struct smtp_test_config *const config){
    * @ref smtp_append_address_to_header.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_realloc_ctr = 2;
+  g_smtp_test_err_realloc_ctr = 3;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -2877,7 +3040,7 @@ test_failure_mail(struct smtp_test_config *const config){
    * @ref smtp_append_address_to_header.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_realloc_ctr = 3;
+  g_smtp_test_err_realloc_ctr = 5;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -2885,7 +3048,7 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Failed memory allocation in @ref smtp_print_header. */
   test_smtp_open_default(config);
-  g_smtp_test_err_malloc_ctr = 1;
+  g_smtp_test_err_malloc_ctr = 19;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -2893,7 +3056,7 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Failed @ref smtp_chunk_split in @ref smtp_print_header. */
   test_smtp_open_default(config);
-  g_smtp_test_err_calloc_ctr = 0;
+  g_smtp_test_err_calloc_ctr = 4;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_calloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -2901,8 +3064,8 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Failed @ref smtp_puts in @ref smtp_print_header. */
   test_smtp_open_default(config);
-  g_smtp_test_err_send_ctr = 3;
-  g_smtp_test_err_ssl_write_ctr = 3;
+  g_smtp_test_err_send_ctr = 4;
+  g_smtp_test_err_ssl_write_ctr = 4;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
@@ -2915,19 +3078,19 @@ test_failure_mail(struct smtp_test_config *const config){
    * @ref smtp_str_replace.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_malloc_ctr = 2;
+  g_smtp_test_err_realloc_ctr = 7;
   rc = smtp_mail(config->smtp, "body");
-  g_smtp_test_err_malloc_ctr = -1;
-  assert(rc == SMTP_STATUS_SEND);
+  g_smtp_test_err_realloc_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
   /*
    * Memory allocation failure in @ref smtp_print_mime_email ->
    * @ref smtp_print_mime_header_and_body   ->
-   * @ref smtp_str_replace.
+   * malloc after @ref smtp_str_replace.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_malloc_ctr = 3;
+  g_smtp_test_err_malloc_ctr = 27;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -2939,8 +3102,8 @@ test_failure_mail(struct smtp_test_config *const config){
    * @ref smtp_puts.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_send_ctr = 4;
-  g_smtp_test_err_ssl_write_ctr = 4;
+  g_smtp_test_err_send_ctr = 8;
+  g_smtp_test_err_ssl_write_ctr = 8;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
@@ -2949,16 +3112,26 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Memory allocation failure in @ref smtp_print_mime_attachment. */
   test_smtp_open_default(config);
-  g_smtp_test_err_malloc_ctr = 4;
+  g_smtp_test_err_malloc_ctr = 29;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
+  /* Send failure in @ref smtp_print_mime_attachment. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_send_ctr = 9;
+  g_smtp_test_err_ssl_write_ctr = 9;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_send_ctr = -1;
+  g_smtp_test_err_ssl_write_ctr = -1;
+  assert(rc == SMTP_STATUS_SEND);
+  smtp_close(config->smtp);
+
   /* Send failure in @ref smtp_print_mime_end. */
   test_smtp_open_default(config);
-  g_smtp_test_err_send_ctr = 5;
-  g_smtp_test_err_ssl_write_ctr = 5;
+  g_smtp_test_err_send_ctr = 10;
+  g_smtp_test_err_ssl_write_ctr = 10;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
@@ -2967,8 +3140,8 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Failed to send end of DATA segment. */
   test_smtp_open_default(config);
-  g_smtp_test_err_send_ctr = 6;
-  g_smtp_test_err_ssl_write_ctr = 6;
+  g_smtp_test_err_send_ctr = 11;
+  g_smtp_test_err_ssl_write_ctr = 11;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
@@ -2977,8 +3150,8 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Invalid server response on DATA termination. */
   test_smtp_open_default(config);
-  g_smtp_test_err_recv_ctr = 1;
-  g_smtp_test_err_ssl_read_ctr = 1;
+  g_smtp_test_err_recv_ctr = 4;
+  g_smtp_test_err_ssl_read_ctr = 4;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_recv_ctr = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
@@ -3032,47 +3205,44 @@ static void
 test_failure_auth(struct smtp_test_config *const config){
   int rc;
 
-  rc = smtp_open(config->server,
-                 config->port,
-                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
-                 SMTP_TEST_DEFAULT_FLAGS,
-                 &config->smtp);
-  assert(rc == SMTP_STATUS_OK);
-
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* Invalid SMTP status code. */
+  test_smtp_open_default(config);
   smtp_status_code_set(config->smtp, SMTP_STATUS_NOMEM);
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_NONE,
                  config->user,
                  config->pass);
   assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* Invalid authentication method. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   rc = smtp_auth(config->smtp,
                  -1,
                  config->user,
                  config->pass);
   assert(rc == SMTP_STATUS_PARAM);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* PLAIN - Invalid credentials. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_PLAIN,
                  "invalid",
                  "invalid");
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* PLAIN - Memory allocation failure in (1). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_malloc_ctr = 0;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_PLAIN,
@@ -3080,11 +3250,12 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* PLAIN - @ref smtp_base64_encode failure in (2). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_calloc_ctr = 0;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_PLAIN,
@@ -3092,11 +3263,12 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_calloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* PLAIN - Memory allocation failure in (3). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_malloc_ctr = 1;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_PLAIN,
@@ -3104,11 +3276,12 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* PLAIN - @ref smtp_puts failure in (3). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_send_ctr      = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
   rc = smtp_auth(config->smtp,
@@ -3118,11 +3291,12 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_base64_encode failure in (1). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_calloc_ctr = 0;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_LOGIN,
@@ -3130,11 +3304,12 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_calloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - Memory allocation failure in (2). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_malloc_ctr = 0;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_LOGIN,
@@ -3142,11 +3317,12 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_puts send failure in (2). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_send_ctr      = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
   rc = smtp_auth(config->smtp,
@@ -3156,11 +3332,12 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - Response read error in (2). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_recv_ctr     = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
   rc = smtp_auth(config->smtp,
@@ -3170,11 +3347,12 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_recv_ctr     = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_base64_encode failure in (3). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_calloc_ctr = 2;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_LOGIN,
@@ -3182,11 +3360,12 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_calloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_puts_terminate failure in (3). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_send_ctr      = 1;
   g_smtp_test_err_ssl_write_ctr = 1;
   rc = smtp_auth(config->smtp,
@@ -3196,33 +3375,36 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_puts_terminate memory allocation failure in (3). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
-  g_smtp_test_err_malloc_ctr = 1;
+  test_smtp_open_default(config);
+  g_smtp_test_err_malloc_ctr = 3;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_LOGIN,
                  config->user,
                  config->pass);
-  g_smtp_test_err_malloc_ctr = 0;
+  g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* LOGIN - Invalid credentials in (3). */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_LOGIN,
                  "invalid",
                  "invalid");
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* CRAM-MD5 (1) @ref smtp_puts failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_send_ctr      = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
   rc = smtp_auth(config->smtp,
@@ -3232,11 +3414,12 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* CRAM-MD5 (1) Response read error. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_recv_ctr     = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
   rc = smtp_auth(config->smtp,
@@ -3246,11 +3429,25 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_recv_ctr     = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (1) Response memory allocation error. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_calloc_ctr = 0;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_calloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
 
   /* CRAM-MD5 (1) Server response bad. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_recv_ctr     = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
   strcpy(g_smtp_test_err_recv_bytes, "535 authentication failed");
@@ -3262,59 +3459,12 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_recv_ctr     = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* CRAM-MD5 (2) @ref smtp_base64_decode failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
-  g_smtp_test_err_calloc_ctr = 0;
-  rc = smtp_auth(config->smtp,
-                 SMTP_AUTH_CRAM_MD5,
-                 config->user,
-                 config->pass);
-  g_smtp_test_err_calloc_ctr = -1;
-  assert(rc == SMTP_STATUS_AUTH);
-
-  smtp_test_sleep(10);
-
-  /* CRAM-MD5 (3) @ref HMAC failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
-  g_smtp_test_err_hmac_ctr = 0;
-  rc = smtp_auth(config->smtp,
-                 SMTP_AUTH_CRAM_MD5,
-                 config->user,
-                 config->pass);
-  g_smtp_test_err_hmac_ctr = -1;
-  assert(rc == SMTP_STATUS_AUTH);
-
-  smtp_test_sleep(10);
-
-  /* CRAM-MD5 (4) @ref smtp_bin2hex failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
-  g_smtp_test_err_malloc_ctr = 0;
-  rc = smtp_auth(config->smtp,
-                 SMTP_AUTH_CRAM_MD5,
-                 config->user,
-                 config->pass);
-  g_smtp_test_err_malloc_ctr = -1;
-  assert(rc == SMTP_STATUS_AUTH);
-
-  smtp_test_sleep(10);
-
-  /* CRAM-MD5 (5) Memory allocation failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
-  g_smtp_test_err_malloc_ctr = 1;
-  rc = smtp_auth(config->smtp,
-                 SMTP_AUTH_CRAM_MD5,
-                 config->user,
-                 config->pass);
-  g_smtp_test_err_malloc_ctr = -1;
-  assert(rc == SMTP_STATUS_AUTH);
-
-  smtp_test_sleep(10);
-
-  /* CRAM-MD5 (6) @ref smtp_base64_encode failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_calloc_ctr = 1;
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_CRAM_MD5,
@@ -3322,11 +3472,64 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_calloc_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (3) @ref HMAC failure. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_hmac_ctr = 0;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_hmac_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (4) @ref smtp_bin2hex failure. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_malloc_ctr = 2;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_malloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (5) Memory allocation failure. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_malloc_ctr = 3;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_malloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (6) @ref smtp_base64_encode failure. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_calloc_ctr = 2;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_calloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
 
   /* CRAM-MD5 (7) @ref smtp_puts_terminate failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   g_smtp_test_err_send_ctr      = 1;
   g_smtp_test_err_ssl_write_ctr = 1;
   rc = smtp_auth(config->smtp,
@@ -3336,21 +3539,20 @@ test_failure_auth(struct smtp_test_config *const config){
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 
   /* CRAM-MD5 (7) Invalid credentials. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  test_smtp_open_default(config);
   rc = smtp_auth(config->smtp,
                  SMTP_AUTH_CRAM_MD5,
                  "invalid",
                  "invalid");
   assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
 
-  rc = smtp_close(config->smtp);
-  assert(rc == SMTP_STATUS_AUTH);
-
-  smtp_test_sleep(10);
+  smtp_test_sleep(15);
 }
 
 /**
@@ -3369,6 +3571,12 @@ test_failure_timeout(struct smtp_test_config *const config){
                  &config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        NULL);
+  assert(rc == SMTP_STATUS_OK);
+
   g_smtp_test_err_select_ctr = 0;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_select_ctr = -1;
@@ -3385,6 +3593,7 @@ test_failure_timeout(struct smtp_test_config *const config){
  */
 static void
 test_all_failure_modes(struct smtp_test_config *const config){
+  test_failure_misc(config);
   test_failure_open(config);
   test_failure_auth(config);
   test_failure_address_add(config);
@@ -3423,6 +3632,7 @@ smtp_func_test_postfix(void){
   smtp_func_test_all_attachments(&config);
   smtp_func_test_all_address(&config);
   smtp_func_test_all_headers(&config);
+  smtp_func_test_all_nodebug(&config);
 }
 
 /**
@@ -3454,8 +3664,8 @@ smtp_func_test_gmail(void){
  */
 static void
 smtp_func_test_all(void){
-  smtp_func_test_postfix();
   smtp_func_test_gmail();
+  smtp_func_test_postfix();
 }
 
 /**
