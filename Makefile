@@ -143,7 +143,7 @@ doc $(BDIR)/doc/html/index.html: src/mailx.c               \
                                  test/test.c               \
                                  test/test_cpp_wrapper.cpp \
                                  test/test_nossl.c         \
-                                 doc.cfg
+                                 doc.cfg | $(BDIR)/doc
 	$(SILENT) doxygen doc.cfg
 
 install: all
@@ -158,6 +158,9 @@ test_unit: all
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test -u
 
 -include $(shell find $(BDIR)/ -name "*.d" 2> /dev/null)
+
+$(BDIR)/doc:
+	$(MKDIR)
 
 $(BDIR)/release:
 	$(MKDIR)
