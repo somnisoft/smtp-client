@@ -100,6 +100,7 @@ VFLAGS_MEMCHECK += --expensive-definedness-checks=yes
 VFLAGS_MEMCHECK += --track-origins=yes
 VFLAGS_MEMCHECK += --leak-check=full
 VFLAGS_MEMCHECK += --leak-resolution=high
+VFLAGS_MEMCHECK += --suppressions=test/valgrind-suppressions.txt
 VALGRIND_MEMCHECK = $(SILENT) valgrind $(VFLAGS) $(VFLAGS_MEMCHECK)
 
 CC  = gcc

@@ -1159,10 +1159,11 @@ smtp_getline(struct smtp *const smtp){
     return STRING_GETDELIMFD_ERROR;
   }
 
-  /* Remove the carriage-return character ('\r'). */
-  smtp->gdfd.line[smtp->gdfd.line_len - 1] = '\0';
-
-  smtp_puts_dbg(smtp, "Server", smtp->gdfd.line);
+  if(smtp->gdfd.line_len > 0){
+    /* Remove the carriage-return character ('\r'). */
+    smtp->gdfd.line[smtp->gdfd.line_len - 1] = '\0';
+    smtp_puts_dbg(smtp, "Server", smtp->gdfd.line);
+  }
   return rc;
 }
 
