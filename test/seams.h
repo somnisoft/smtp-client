@@ -40,6 +40,7 @@
 #undef SSL_CTX_new
 #undef SSL_do_handshake
 #undef SSL_get_peer_certificate
+#undef smtp_test_seam_x509_check_host
 #undef SSL_new
 #undef SSL_read
 #undef SSL_write
@@ -221,6 +222,14 @@
  * See @ref smtp_test_seam_ssl_get_peer_certificate.
  */
 #define SSL_get_peer_certificate smtp_test_seam_ssl_get_peer_certificate
+
+/**
+ * Redefine this function from smtp.c and inject a test seam which
+ * can control when this function fails.
+ *
+ * See @ref smtp_test_seam_x509_check_host.
+ */
+#define X509_check_host smtp_test_seam_x509_check_host
 
 /**
  * Redefine this function from smtp.c and inject a test seam which

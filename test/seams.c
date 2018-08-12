@@ -162,6 +162,12 @@ int g_smtp_test_err_ssl_do_handshake_ctr = -1;
 int g_smtp_test_err_ssl_get_peer_certificate_ctr = -1;
 
 /**
+ * See @ref g_smtp_test_err_x509_check_host_ctr and
+ * @ref test_seams_countdown_global.
+ */
+int g_smtp_test_err_x509_check_host_ctr = -1;
+
+/**
  * See @ref g_smtp_test_err_ssl_new_ctr and @ref test_seams_countdown_global.
  */
 int g_smtp_test_err_ssl_new_ctr = -1;
@@ -629,6 +635,31 @@ smtp_test_seam_ssl_get_peer_certificate(const SSL *ssl){
     return NULL;
   }
   return SSL_get_peer_certificate(ssl);
+}
+
+/**
+ * Allows the test harness to control when X509_check_host() fails.
+ *
+ * @param[in] cert     X509 certificate handle.
+ * @param[in] name     Server name.
+ * @param[in] namelen  Number of characters in @p name or 0 if null-terminated.
+ * @param[in] flags    Usually set to 0.
+ * @param[in] peername Pointer to CN from certificate stored in this buffer
+ *                     if not NULL.
+ * @retval  1 Successful host check.
+ * @retval  0 Failed host check.
+ * @retval -1 Internal error.
+ */
+int
+smtp_test_seam_x509_check_host(X509 *cert,
+                               const char *name,
+                               size_t namelen,
+                               unsigned int flags,
+                               char **peername){
+  if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_x509_check_host_ctr)){
+    return -1;
+  }
+  return X509_check_host(cert, name, namelen, flags, peername);
 }
 
 /**

@@ -220,6 +220,13 @@ smtp_test_seam_ssl_do_handshake(SSL *ssl);
 X509 *
 smtp_test_seam_ssl_get_peer_certificate(const SSL *ssl);
 
+int
+smtp_test_seam_x509_check_host(X509 *cert,
+                               const char *name,
+                               size_t namelen,
+                               unsigned int flags,
+                               char **peername);
+
 SSL *
 smtp_test_seam_ssl_new(SSL_CTX *ctx);
 
@@ -422,6 +429,13 @@ int g_smtp_test_err_ssl_do_handshake_ctr;
  * See @ref test_seams_countdown_global for more details.
  */
 int g_smtp_test_err_ssl_get_peer_certificate_ctr;
+
+/**
+ * Counter for @ref smtp_test_seam_x509_check_host.
+ *
+ * See @ref test_seams_countdown_global for more details.
+ */
+int g_smtp_test_err_x509_check_host_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_new.

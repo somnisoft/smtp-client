@@ -54,6 +54,11 @@
 #define SMTP_MAX_SERVER_LEN          255
 
 /**
+ * Maximum certificate path length.
+ */
+#define SMTP_MAX_CAFILE_PATH         255
+
+/**
  * Maximum server port buffer length.
  */
 #define SMTP_MAX_PORT_LEN            10
@@ -1439,6 +1444,11 @@ struct smtp_test_config{
   char server[SMTP_MAX_SERVER_LEN];
 
   /**
+   * Path to server certificate file.
+   */
+  char cafile[SMTP_MAX_CAFILE_PATH];
+
+  /**
    * Server port number.
    */
   char port[SMTP_MAX_PORT_LEN];
@@ -1543,6 +1553,9 @@ smtp_test_config_load_from_file(const char *const config_path,
 
     if(strcmp(key, "server") == 0){
       smtp_strlcpy(config->server, value, sizeof(config->server));
+    }
+    else if(strcmp(key, "cafile") == 0){
+      smtp_strlcpy(config->cafile, value, sizeof(config->cafile));
     }
     else if(strcmp(key, "port") == 0){
       smtp_strlcpy(config->port, value, sizeof(config->port));
@@ -1768,16 +1781,14 @@ smtp_func_test_all_connection_security(struct smtp_test_config *const config){
  */
 static void
 smtp_func_test_all_cafile(struct smtp_test_config *const config){
-  const char *const PATH_CERT = "test/config/dovecot.pem";
-
   smtp_func_test_send_email(config,
                             config->port,
                             SMTP_SECURITY_STARTTLS,
                             SMTP_DEBUG,
                             SMTP_TEST_DEFAULT_AUTH_METHOD,
-                            PATH_CERT,
+                            config->cafile,
                             "SMTP Test: cafile",
-                            PATH_CERT);
+                            config->cafile);
 }
 
 /**
@@ -2566,18 +2577,39 @@ test_failure_open(struct smtp_test_config *const config){
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_HANDSHAKE);
 
-  /*
-   * SSL_get_peer_certificate() failure.
-   * @todo This fails on SSL_connect because local server uses self-signed certificate.
-   */
+  /* SSL_CTX_load_verify_locations() failure. */
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_SECURITY_STARTTLS,
+                 SMTP_DEBUG,
+                 "test/config/file_does_not_exist",
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+
+  /* SSL_get_peer_certificate() failure. */
   g_smtp_test_err_ssl_get_peer_certificate_ctr = 0;
   rc = smtp_open(config->server,
                  config->port,
                  SMTP_SECURITY_STARTTLS,
                  SMTP_DEBUG,
-                 SMTP_TEST_DEFAULT_CAFILE,
+                 config->cafile,
                  &config->smtp);
   g_smtp_test_err_ssl_get_peer_certificate_ctr = -1;
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_HANDSHAKE);
+
+  /* X509_check_host() failure.  */
+  g_smtp_test_err_x509_check_host_ctr = 0;
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_SECURITY_STARTTLS,
+                 SMTP_DEBUG,
+                 config->cafile,
+                 &config->smtp);
+  g_smtp_test_err_x509_check_host_ctr = -1;
   assert(rc == SMTP_STATUS_HANDSHAKE);
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_HANDSHAKE);

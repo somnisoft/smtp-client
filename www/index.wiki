@@ -16,7 +16,7 @@ Feature list:
   *  Specify multiple TO, CC, and BCC recipients
   *  Simple API and simple error handling (see Examples section below)
   *  Optional OpenSSL TLS connection and authentication methods
-  *  TODO (almost completed): Test cases with 100% code and branch coverage
+  *  Test cases with 100% code and branch coverage
   *  Doxygen with 100% documentation including the test code
   *  Free software (permissive - CC0)
 
