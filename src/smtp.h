@@ -17,9 +17,10 @@
 #include <stdio.h>
 
 /**
- * Status codes indicating the success or failure from calling any of the
- * SMTP library functions. This code gets returned by all functions in this
- * header.
+ * Status codes indicating success or failure from calling any of the
+ * SMTP library functions.
+ *
+ * This code gets returned by all functions in this header.
  */
 enum smtp_status_code{
   /**
@@ -84,7 +85,9 @@ enum smtp_status_code{
 
   /**
    * Indicates the last status code in the enumeration, useful for
-   * bounds checking. Not a valid status code.
+   * bounds checking.
+   *
+   * Not a valid status code.
    */
   SMTP_STATUS__LAST
 };
@@ -146,8 +149,9 @@ enum smtp_connection_security{
 #endif /* SMTP_OPENSSL */
 
   /**
-   * Do not use TLS encryption. Not recommended unless connecting to the
-   * SMTP server locally.
+   * Do not use TLS encryption.
+   *
+   * Not recommended unless connecting to the SMTP server locally.
    */
   SMTP_SECURITY_NONE
 };
@@ -307,13 +311,13 @@ enum smtp_result_code{
   SMTP_DONE           = 250,
 
   /**
-   * Returned for some multi-line authentication mechanisms which indicates
-   * the next stage in the authentication step
+   * Returned for some multi-line authentication mechanisms where this code
+   * indicates the next stage in the authentication step.
    */
   SMTP_AUTH_CONTINUE  = 334,
 
   /**
-   * Returned in response to DATA.
+   * Returned in response to DATA command.
    */
   SMTP_BEGIN_MAIL     = 354
 };
@@ -368,7 +372,7 @@ enum str_getdelim_retcode{
 /**
  * Data structure for read buffer and line parsing.
  *
- * It assists with getting and parsing the server response lines.
+ * This assists with getting and parsing the server response lines.
  */
 struct str_getdelimfd{
   /**
@@ -382,7 +386,7 @@ struct str_getdelimfd{
   size_t _bufsz;
 
   /**
-   * Number of stored bytes in the read buffer.
+   * Number of actual stored bytes in the read buffer.
    */
   size_t _buf_len;
 

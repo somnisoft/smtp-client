@@ -67,7 +67,7 @@
 /*
  * The SMTP_TEST converts some library routines into special test seams which
  * allows the test program to control whether they fail. For example, we can
- * control when smtp_malloc fails under certain conditions with an out of
+ * control when malloc() fails under certain conditions with an out of
  * memory condition.
  */
 #ifdef SMTP_TEST
@@ -118,12 +118,12 @@ struct smtp_address{
  */
 struct smtp_attachment{
   /**
-   * Filename of the attachment.
+   * File name of the attachment.
    */
   char *name;
 
   /**
-   * Encode all attachment data in base64 format.
+   * Base64-encoded file data.
    */
   char *b64_data;
 };
@@ -133,18 +133,18 @@ struct smtp_attachment{
  */
 struct smtp_header{
   /**
-   * Header name which will get used to store the header list alphabetically.
+   * Header name which will get sorted alphabetically in the header list.
    */
   char *key;
 
   /**
-   * Contents to send for the corresponding header key.
+   * Content of the corresponding header key.
    */
   char *value;
 };
 
 /**
- * Main data structure used fo holding the SMTP client context.
+ * Main data structure that holds the SMTP client context.
  */
 struct smtp{
   /**
@@ -830,7 +830,7 @@ smtp_bin2hex(const unsigned char *const s,
 #endif /* SMTP_OPENSSL */
 
 /**
- * Get the length in bytes of the current UTF-8 character.
+ * Get the length in bytes of a UTF-8 character.
  *
  * This consists of a very simple check and assumes the user provides a valid
  * UTF-8 byte sequence. It gets the length from the first byte in the sequence
@@ -839,7 +839,7 @@ smtp_bin2hex(const unsigned char *const s,
  *
  * @param[in] c The first byte in a valid UTF-8 character sequence.
  * @retval >0 Number of bytes for the current UTF-8 character sequence.
- * @retval  0 Invalid byte sequence.
+ * @retval -1 Invalid byte sequence.
  */
 SMTP_LINKAGE int
 smtp_utf8_charlen(unsigned char c){
@@ -864,7 +864,7 @@ smtp_utf8_charlen(unsigned char c){
  * Check if a string contains non-ASCII UTF-8 characters.
  *
  * Uses the simple algorithm from @ref smtp_utf8_charlen to check for
- * UTF-8 characters.
+ * non-ASCII UTF-8 characters.
  *
  * @param[in] s UTF-8 string.
  * @retval 1 String contains non-ASCII UTF-8 characters.
@@ -1004,6 +1004,7 @@ smtp_ffile_get_contents(FILE *stream,
   char *read_buf;
   size_t bufsz;
   char *new_buf;
+  size_t bytes_read_loop;
   const size_t BUFSZ_INCREMENT = 512;
 
   read_buf = NULL;
@@ -1014,7 +1015,6 @@ smtp_ffile_get_contents(FILE *stream,
   }
 
   do{
-    size_t bytes_read_loop;
     if((new_buf = realloc(read_buf, bufsz + BUFSZ_INCREMENT)) == NULL){
       free(read_buf);
       return NULL;
@@ -1329,7 +1329,7 @@ smtp_connect(struct smtp *const smtp,
 #ifdef SMTP_OPENSSL
 /**
  * Initialize the TLS library and establish a TLS handshake with the server
- * on the existing socket connection.
+ * over the existing socket connection.
  *
  * @param[in] smtp   SMTP client context.
  * @param[in] server Server name or IP address.
@@ -2049,7 +2049,7 @@ smtp_print_mime_email(struct smtp *const smtp,
  * header lines.
  *
  * @param[in] smtp   SMTP client context.
- * @param[in] header @ref smtp_header.
+ * @param[in] header See @ref smtp_header.
  * @return @ref smtp_status_code.
  */
 static int
@@ -2251,6 +2251,8 @@ smtp_header_exists(const struct smtp *const smtp,
 }
 
 /**
+ * Validate characters in the email header key.
+ *
  * Must consist only of printable US-ASCII characters except colon.
  *
  * @param[in] key Header key to validate.
@@ -2279,6 +2281,8 @@ smtp_header_key_validate(const char *const key){
 }
 
 /**
+ * Validate characters in the email header contents.
+ *
  * Must consist only of printable character, space, or horizontal tab.
  *
  * @param[in] value Header value to validate.
@@ -2302,8 +2306,10 @@ smtp_header_value_validate(const char *const value){
 }
 
 /**
- *  The email address must consist only of printable characters excluding
- *  the angle brackets (<) and (>).
+ * Validate characters in the email address.
+ *
+ * The email address must consist only of printable characters excluding
+ * the angle brackets (<) and (>).
  *
  * @param[in] email The email address of the party.
  * @retval  0 Successful validation.
@@ -2325,6 +2331,8 @@ smtp_address_validate_email(const char *const email){
 }
 
 /**
+ * Validate characters in the email name.
+ *
  * Email user name must consist only of printable characters, excluding the
  * double quote character.
  *
@@ -2347,6 +2355,8 @@ smtp_address_validate_name(const char *const name){
 }
 
 /**
+ * Validate characters in the attachment file name.
+ *
  * Must consist only of printable characters or the space character ( ), and
  * excluding the quote characters (') and (").
  *

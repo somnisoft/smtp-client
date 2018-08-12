@@ -47,6 +47,7 @@ The following example code demonstrates how to use the library.
 #define MAIL_CONNECTION_SECURITY SMTP_SECURITY_STARTTLS
 #define MAIL_FLAGS               (SMTP_DEBUG         | \
                                   SMTP_NO_CERT_VERIFY) /* Do not verify cert. */
+#define MAIL_CAFILE              NULL
 #define MAIL_AUTH                SMTP_AUTH_PLAIN
 #define MAIL_USER                "mail@example.com"
 #define MAIL_PASS                "password"
@@ -61,6 +62,7 @@ int main(void)
                  MAIL_PORT,
                  MAIL_CONNECTION_SECURITY,
                  MAIL_FLAGS,
+                 MAIL_CAFILE,
                  &smtp);
   rc = smtp_auth(smtp,
                  MAIL_AUTH,
