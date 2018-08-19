@@ -2400,6 +2400,9 @@ smtp_attachment_validate_name(const char *const name){
  * status will continue to propagate to any further function calls for
  * the SMTP context while in this failure mode.
  *
+ * This function will ignore the SIGPIPE signal. Applications that require a
+ * handler for that signal should set it up after calling this function.
+ *
  * @param[in]  server              Server name or IP address.
  * @param[in]  port                Server port number.
  * @param[in]  connection_security See @ref smtp_connection_security.
@@ -2440,6 +2443,10 @@ smtp_open(const char *const server,
   snew->flags = flags;
   snew->cafile = cafile;
 
+#ifndef SMTP_IS_WINDOWS
+  signal(SIGPIPE, SIG_IGN);
+#endif /* !(SMTP_IS_WINDOWS) */
+
   if(smtp_connect(snew, server, port) < 0){
     return smtp_status_code_set(*smtp, SMTP_STATUS_CONNECT);
   }
@@ -2448,10 +2455,6 @@ smtp_open(const char *const server,
   snew->gdfd.delim           = '\n';
   snew->gdfd.getdelimfd_read = smtp_str_getdelimfd_read;
   snew->gdfd.user_data       = snew;
-
-#ifndef SMTP_IS_WINDOWS
-  signal(SIGPIPE, SIG_IGN);
-#endif /* !(SMTP_IS_WINDOWS) */
 
   if(smtp_initiate_handshake(snew,
                              server,
