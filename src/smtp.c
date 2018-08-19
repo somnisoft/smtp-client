@@ -43,6 +43,7 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
@@ -2447,6 +2448,10 @@ smtp_open(const char *const server,
   snew->gdfd.delim           = '\n';
   snew->gdfd.getdelimfd_read = smtp_str_getdelimfd_read;
   snew->gdfd.user_data       = snew;
+
+#ifndef SMTP_IS_WINDOWS
+  signal(SIGPIPE, SIG_IGN);
+#endif /* !(SMTP_IS_WINDOWS) */
 
   if(smtp_initiate_handshake(snew,
                              server,
