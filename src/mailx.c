@@ -530,6 +530,7 @@ int main(int argc, char *argv[]){
     }
   }
 
+  puts("Reading email body from stdin");
   if((mailx.body = smtp_ffile_get_contents(stdin, NULL)) == NULL){
     err(1, "failed to read email body from stdin");
   }
