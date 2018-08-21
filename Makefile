@@ -155,6 +155,7 @@ install: all
 test: all
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test
 	$(VALGRIND_MEMCHECK) $(BDIR)/release/test_nossl
+	$(BDIR)/release/test_cpp_wrapper
 
 test_unit: all
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test -u
