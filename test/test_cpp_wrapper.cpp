@@ -1,3 +1,13 @@
+/**
+ * @file
+ * @brief Test the smtp-client CPP wrapper.
+ * @author James Humphrey (mail@somnisoft.com)
+ * @version 0.99
+ *
+ * Example program demonstrating how to use the CPP wrapper class.
+ *
+ * This software has been placed into the public domain using CC0.
+ */
 #include <err.h>
 
 #include <SMTPMail.h>
