@@ -29,6 +29,13 @@ int main(int argc, char *argv[]){
   try{
     mail->open("localhost", "25", SMTP_SECURITY_NONE, SMTP_DEBUG);
     mail->auth(SMTP_AUTH_NONE, NULL, NULL);
+    mail->address_add(SMTP_ADDRESS_FROM,
+                      "mail@somnisoft.com",
+                      "From Address");
+    mail->address_add(SMTP_ADDRESS_TO,
+                      "mail@somnisoft.com",
+                      "To Address");
+    mail->header_add("Subject", "Test email (SMTPMail)");
     mail->mail("Email sent using CPP SMTPMail class");
     mail->close();
   }
