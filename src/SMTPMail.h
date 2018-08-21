@@ -71,11 +71,14 @@ public:
    * @param[in]  port                Server port number.
    * @param[in]  connection_security See @ref smtp_connection_security.
    * @param[in]  flags               See @ref smtp_flag.
+   * @param[in]  cafile              Path to certificate file, or NULL to use
+   *                                 certificates in the default path.
    */
   void open(const char *const server,
             const char *const port,
             enum smtp_connection_security connection_security,
-            enum smtp_flag flags);
+            enum smtp_flag flags,
+            const char *const cafile);
 
   /**
    * Authenticate the user using one of the methods listed in

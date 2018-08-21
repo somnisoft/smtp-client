@@ -28,12 +28,13 @@ SMTPMail::~SMTPMail(void){
 void SMTPMail::open(const char *const server,
                     const char *const port,
                     enum smtp_connection_security connection_security,
-                    enum smtp_flag flags){
+                    enum smtp_flag flags,
+                    const char *const cafile){
   this->rc = smtp_open(server,
                        port,
                        connection_security,
                        flags,
-                       NULL,
+                       cafile,
                        &this->smtp);
   this->throw_bad_status_code();
 }

@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
 
   mail = new SMTPMail();
   try{
-    mail->open("localhost", "25", SMTP_SECURITY_NONE, SMTP_DEBUG);
+    mail->open("localhost", "25", SMTP_SECURITY_NONE, SMTP_DEBUG, NULL);
     mail->auth(SMTP_AUTH_NONE, NULL, NULL);
     mail->address_add(SMTP_ADDRESS_FROM,
                       "mail@somnisoft.com",
