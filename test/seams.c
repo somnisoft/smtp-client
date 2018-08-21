@@ -2,7 +2,7 @@
  * @file
  * @brief Test seams for the smtp-client library.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * Used by the smtp-client testing framework to inject specific return values
  * by some standard library functions. This makes it possible to test less

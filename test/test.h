@@ -2,7 +2,7 @@
  * @file
  * @brief Test the smtp-client library.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * This smtp-client testing framework has 100% branch coverage on POSIX
  * systems. It requires a Postfix SMTP server that supports all of the

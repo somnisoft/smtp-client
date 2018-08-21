@@ -2,7 +2,7 @@
 ## @file
 ## @brief SMTP Developer Makefile.
 ## @author James Humphrey (mail@somnisoft.com)
-## @version 0.99
+## @version 1.00
 ##
 ## This Makefile used internally to build and test the SMTP client library.
 ## Do not use this Makefile for building the library into your application.

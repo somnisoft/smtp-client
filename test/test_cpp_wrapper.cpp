@@ -2,7 +2,7 @@
  * @file
  * @brief Test the smtp-client CPP wrapper.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * Example program demonstrating how to use the CPP wrapper class.
  *

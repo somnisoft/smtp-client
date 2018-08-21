@@ -2,7 +2,7 @@
  * @file
  * @brief POSIX mailx utility.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * Implementation of POSIX mailx utility in send mode.
  *

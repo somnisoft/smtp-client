@@ -2,7 +2,7 @@
  * @file
  * @brief SMTP client library.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * This SMTP client library allows the user to send emails to an SMTP server.
  * The user can include custom headers and MIME attachments.

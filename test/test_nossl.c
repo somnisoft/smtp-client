@@ -2,7 +2,7 @@
  * @file
  * @brief Test the smtp-client library without OpenSSL.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * These functional tests ensure that the smtp-client library works when
  * configured without OpenSSL.

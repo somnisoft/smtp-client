@@ -2,7 +2,7 @@
  * @file
  * @brief SMTPMail class wrapper for smtp-client library.
  * @author James Humphrey (mail@somnisoft.com)
- * @version 0.99
+ * @version 1.00
  *
  * Thin CPP wrapper class around the smtp-client C library.
  *
