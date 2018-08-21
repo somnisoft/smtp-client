@@ -7,6 +7,14 @@
   obj:*libcrypto*
 }
 {
+  OpenSSL zalloc
+  Memcheck:Leak
+  fun:malloc
+  fun:CRYPTO_zalloc
+  ...
+  obj:*libcrypto*
+}
+{
   OpenSSL realloc
   Memcheck:Leak
   fun:realloc
