@@ -346,12 +346,14 @@ mailx_parse_smtp_option(struct mailx *const mailx,
     if(strcmp(opt_value, "none") == 0){
       mailx->connection_security = SMTP_SECURITY_NONE;
     }
+#ifdef SMTP_OPENSSL
     else if(strcmp(opt_value, "tls") == 0){
       mailx->connection_security = SMTP_SECURITY_TLS;
     }
     else if(strcmp(opt_value, "starttls") == 0){
       mailx->connection_security = SMTP_SECURITY_STARTTLS;
     }
+#endif /* SMTP_OPENSSL */
     else{
       rc = -1;
     }
@@ -366,9 +368,11 @@ mailx_parse_smtp_option(struct mailx *const mailx,
     else if(strcmp(opt_value, "login") == 0){
       mailx->auth_method = SMTP_AUTH_LOGIN;
     }
+#ifdef SMTP_OPENSSL
     else if(strcmp(opt_value, "cram-md5") == 0){
       mailx->auth_method = SMTP_AUTH_CRAM_MD5;
     }
+#endif /* SMTP_OPENSSL */
     else{
       rc = -1;
     }

@@ -123,6 +123,7 @@ all: $(BDIR)/debug/libsmtp.a          \
      $(BDIR)/release/libsmtp_nossl.a  \
      $(BDIR)/release/libsmtp.a        \
      $(BDIR)/debug/mailx              \
+     $(BDIR)/release/mailx_nossl      \
      $(BDIR)/release/mailx            \
      $(BDIR)/release/test_cpp_wrapper \
      $(BDIR)/doc/html/index.html      \
@@ -186,12 +187,19 @@ $(BDIR)/debug/mailx: $(BDIR)/debug/seams.o   \
                      $(BDIR)/debug/libsmtp.a
 	$(LINK.c.debug) -lssl -lcrypto
 
+$(BDIR)/release/mailx_nossl: $(BDIR)/release/mailx_nossl.o \
+                             $(BDIR)/release/libsmtp_nossl.a
+	$(LINK.c.release)
+
 $(BDIR)/release/mailx: $(BDIR)/release/mailx.o   \
                        $(BDIR)/release/libsmtp.a
 	$(LINK.c.release) -lssl -lcrypto
 
 $(BDIR)/debug/mailx.o: src/mailx.c | $(BDIR)/debug
 	$(COMPILE.c.debug) -Isrc
+
+$(BDIR)/release/mailx_nossl.o: src/mailx.c | $(BDIR)/release
+	$(COMPILE.c.release) -Isrc -USMTP_OPENSSL
 
 $(BDIR)/release/mailx.o: src/mailx.c | $(BDIR)/release
 	$(COMPILE.c.release) -Isrc
