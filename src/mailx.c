@@ -472,6 +472,7 @@ mailx_free(const struct mailx *const mailx){
  *   - smtp-port     - server port number
  *   - smtp-user     - server authentication user name
  *   - smtp-pass     - server authentication user password
+ *   - smtp-from     - from email account
  *
  * The following list shows the default option for -S argument if not provided:
  *   - smtp-security - none
@@ -481,6 +482,7 @@ mailx_free(const struct mailx *const mailx){
  *   - smtp-port     - 25
  *   - smtp-user     - none
  *   - smtp-pass     - none
+ *   - smtp-from     - none
  *
  * @param[in] argc Number of arguments in @p argv.
  * @param[in] argv String array containing the program name and any optional
