@@ -273,6 +273,10 @@ mailx_append_attachment(struct mailx *const mailx,
   struct mailx_attachment *new_attachment;
   size_t new_attachment_list_sz;
 
+  if(filename == NULL || path == NULL){
+    errx(1, "must provide attachment with valid name:path");
+  }
+
   new_attachment_list_sz = (mailx->num_attachment + 1) *
                            sizeof(*mailx->attachment_list);
   if((mailx->attachment_list = realloc(mailx->attachment_list,
@@ -498,7 +502,7 @@ int main(int argc, char *argv[]){
 
   mailx_init_default_values(&mailx);
 
-  while((rc = getopt(argc, argv, "s:S:")) != -1){
+  while((rc = getopt(argc, argv, "a:s:S:")) != -1){
     switch(rc){
     case 'a':
       mailx_append_attachment_arg(&mailx, optarg);
