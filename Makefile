@@ -81,6 +81,7 @@ CFLAGS.debug   += -g3
 CFLAGS.debug   += -DSMTP_TEST
 CFLAGS.debug   += -Wno-missing-prototypes
 CFLAGS.debug   += -fprofile-arcs -ftest-coverage
+CFLAGS.debug   += -fsanitize=undefined
 
 CFLAGS.release += -O3
 
@@ -228,7 +229,7 @@ $(BDIR)/release/smtp.o: src/smtp.c | $(BDIR)/release
 $(BDIR)/debug/test: $(BDIR)/debug/seams.o \
                     $(BDIR)/debug/smtp.o  \
                     $(BDIR)/debug/test.o
-	$(LINK.c.debug) -lssl -lcrypto -lgcov
+	$(LINK.c.debug) -lssl -lcrypto -lgcov -lubsan
 
 $(BDIR)/debug/test.o: test/test.c | $(BDIR)/debug
 	$(COMPILE.c.debug) -Isrc/
