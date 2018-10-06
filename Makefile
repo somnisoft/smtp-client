@@ -20,7 +20,6 @@ INSTALL_PREFIX = /usr/local
 SILENT = @
 
 CWARN += -Waggregate-return
-CWARN += -Wno-aggressive-loop-optimizations
 CWARN += -Wall
 CWARN += -Wbad-function-cast
 CWARN += -Wcast-align
@@ -37,15 +36,12 @@ CWARN += -Wframe-larger-than=5000
 CWARN += -Winit-self
 CWARN += -Winline
 CWARN += -Winvalid-pch
-CWARN += -Wjump-misses-init
 CWARN += -Wlarger-than=10000
-CWARN += -Wlogical-op
 CWARN += -Wlong-long
 CWARN += -Wmissing-declarations
 CWARN += -Wmissing-include-dirs
 CWARN += -Wmissing-prototypes
 CWARN += -Wnested-externs
-CWARN += -Wnormalized=nfkc
 CWARN += -Wold-style-definition
 CWARN += -Wpacked
 CWARN += -Wpedantic
@@ -53,22 +49,29 @@ CWARN += -pedantic-errors
 CWARN += -Wredundant-decls
 CWARN += -Wshadow
 CWARN += -Wstack-protector
-CWARN += -Wstack-usage=5000
 CWARN += -Wstrict-aliasing
 CWARN += -Wstrict-prototypes
 CWARN += -Wswitch-default
 CWARN += -Wswitch-enum
-CWARN += -Wsync-nand
-CWARN += -Wtrampolines
 CWARN += -Wundef
 CWARN += -Wuninitialized
 CWARN += -Wunknown-pragmas
-CWARN += -Wunsafe-loop-optimizations
-CWARN += -Wunsuffixed-float-constants
 CWARN += -Wunused-parameter
-CWARN += -Wvector-operation-performance
 CWARN += -Wvla
 CWARN += -Wwrite-strings
+
+CWARN.gcc += -Wno-aggressive-loop-optimizations
+CWARN.gcc += -Wjump-misses-init
+CWARN.gcc += -Wlogical-op
+CWARN.gcc += -Wnormalized=nfkc
+CWARN.gcc += -Wstack-usage=5000
+CWARN.gcc += -Wsync-nand
+CWARN.gcc += -Wtrampolines
+CWARN.gcc += -Wunsafe-loop-optimizations
+CWARN.gcc += -Wunsuffixed-float-constants
+CWARN.gcc += -Wvector-operation-performance
+
+CWARN.clang += -Wno-format-nonliteral
 
 CFLAGS += $(CWARN)
 CFLAGS += -fstack-protector-all
@@ -77,12 +80,14 @@ CFLAGS += -std=c89
 CFLAGS += -MD
 CFLAGS += -DSMTP_OPENSSL
 
+CFLAGS.debug   += $(CFLAGS)
 CFLAGS.debug   += -g3
 CFLAGS.debug   += -DSMTP_TEST
 CFLAGS.debug   += -Wno-missing-prototypes
 CFLAGS.debug   += -fprofile-arcs -ftest-coverage
 CFLAGS.debug   += -fsanitize=undefined
 
+CFLAGS.release += $(CFLAGS)
 CFLAGS.release += -O3
 
 CPPFLAGS += -DSMTP_OPENSSL
@@ -90,6 +95,11 @@ CPPFLAGS += -MD
 CPPFLAGS += -fpermissive
 
 CPPFLAGS.release = $(CPPFLAGS)
+
+CFLAGS.gcc.debug     += $(CFLAGS.debug)   $(CWARN.gcc)
+CFLAGS.gcc.release   += $(CFLAGS.release) $(CWARN.gcc)
+CFLAGS.clang.debug   += $(CFLAGS.debug)   $(CWARN.clang)
+CFLAGS.clang.release += $(CFLAGS.release) $(CWARN.clang)
 
 VFLAGS += -q
 VFLAGS += --error-exitcode=1
@@ -107,13 +117,17 @@ VALGRIND_MEMCHECK = $(SILENT) valgrind $(VFLAGS) $(VFLAGS_MEMCHECK)
 CC  = gcc
 CPP = g++
 
+CC.clang = clang
+
 AR.c.debug          = $(SILENT) $(AR) -c -r $@ $^
 AR.c.release        = $(SILENT) $(AR) -c -r $@ $^
-COMPILE.c.debug     = $(SILENT) $(CC) $(CFLAGS) $(CFLAGS.debug) -c -o $@ $<
-COMPILE.c.release   = $(SILENT) $(CC) $(CFLAGS) $(CFLAGS.release) -c -o $@ $<
+COMPILE.c.debug     = $(SILENT) $(CC) $(CFLAGS.gcc.debug) -c -o $@ $<
+COMPILE.c.release   = $(SILENT) $(CC) $(CFLAGS.gcc.release) -c -o $@ $<
+COMPILE.c.clang     = $(SILENT) $(CC.clang) $(CFLAGS.clang.debug) -c -o $@ $<
 COMPILE.cpp.release = $(SILENT) $(CPP) $(CPPFLAGS.release) -c -o $@ $<
-LINK.c.debug        = $(SILENT) $(CC) $(CFLAGS) $(CFLAGS.debug) -o $@ $^
-LINK.c.release      = $(SILENT) $(CC) $(CFLAGS) $(CFLAGS.release) -o $@ $^
+LINK.c.debug        = $(SILENT) $(CC) $(CFLAGS.gcc.debug) -o $@ $^
+LINK.c.release      = $(SILENT) $(CC) $(CFLAGS.gcc.release) -o $@ $^
+LINK.c.clang        = $(SILENT) $(CC.clang) $(CFLAGS.clang.debug) -o $@ $^
 LINK.cpp.release    = $(SILENT) $(CPP) $(CPPFLAGS.release) -o $@ $^
 INKSCAPE            = $(SILENT) inkscape
 MOGRIFY             = $(SILENT) mogrify
@@ -129,6 +143,7 @@ all: $(BDIR)/debug/libsmtp.a          \
      $(BDIR)/release/test_cpp_wrapper \
      $(BDIR)/doc/html/index.html      \
      $(BDIR)/debug/test               \
+     $(BDIR)/debug/clang_test         \
      $(BDIR)/release/test_nossl       \
      $(BDIR)/www/images/logo.png
 
@@ -153,13 +168,15 @@ install: all
 	cp src/smtp.h $(INSTALL_PREFIX)/include/smtp.h
 	cp $(BDIR)/release/libsmtp.a $(INSTALL_PREFIX)/lib/libsmtp.a
 
-test: all
+test: all       \
+      test_unit
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test
 	$(VALGRIND_MEMCHECK) $(BDIR)/release/test_nossl
 	$(BDIR)/release/test_cpp_wrapper
 
 test_unit: all
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test -u
+	$(VALGRIND_MEMCHECK) $(BDIR)/debug/clang_test -u
 
 -include $(shell find $(BDIR)/ -name "*.d" 2> /dev/null)
 
@@ -236,6 +253,20 @@ $(BDIR)/debug/test.o: test/test.c | $(BDIR)/debug
 
 $(BDIR)/debug/seams.o: test/seams.c | $(BDIR)/debug
 	$(COMPILE.c.debug)
+
+$(BDIR)/debug/clang_test: $(BDIR)/debug/clang_seams.o \
+                          $(BDIR)/debug/clang_smtp.o  \
+                          $(BDIR)/debug/clang_test.o
+	$(LINK.c.clang) -lssl -lcrypto -lgcov -lubsan
+
+$(BDIR)/debug/clang_seams.o: test/seams.c | $(BDIR)/debug
+	$(COMPILE.c.clang)
+
+$(BDIR)/debug/clang_smtp.o: src/smtp.c | $(BDIR)/debug
+	$(COMPILE.c.clang)
+
+$(BDIR)/debug/clang_test.o: test/test.c | $(BDIR)/debug
+	$(COMPILE.c.clang) -Isrc/
 
 $(BDIR)/release/test_nossl: $(BDIR)/release/smtp_nossl.o \
                             $(BDIR)/release/test_nossl.o

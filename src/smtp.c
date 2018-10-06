@@ -668,7 +668,8 @@ smtp_base64_encode(const char *const buf,
  * with -1 during the decoding process, then that indicates an invalid base64
  * character in the encoded data.
  */
-static char g_base64_decode_table[] = {
+static signed char
+g_base64_decode_table[] = {
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -702,7 +703,7 @@ smtp_base64_decode_block(const unsigned char *const buf,
                          unsigned char *const decode){
   int decode_block_len;
   size_t i;
-  char decode_table[4];
+  signed char decode_table[4];
   unsigned char outb[3];
 
   decode_block_len = 0;
@@ -711,7 +712,7 @@ smtp_base64_decode_block(const unsigned char *const buf,
       decode_table[i] = 0;
       continue;
     }
-    decode_table[i] = g_base64_decode_table[(unsigned char)buf[i]];
+    decode_table[i] = g_base64_decode_table[buf[i]];
     if(decode_table[i] < 0){
       return -1;
     }
@@ -2387,6 +2388,44 @@ smtp_attachment_validate_name(const char *const name){
 #define SMTP_FLAG_INVALID_MEMORY (enum smtp_flag)(0xFFFFFFFF)
 
 /**
+ * This error structure used for the single error case where we cannot
+ * initially allocate memory. This makes it easier to propagate any
+ * error codes when calling the other header functions because the
+ * caller will always get a valid SMTP structure returned.
+ */
+static struct smtp smtp_error = {
+  SMTP_FLAG_INVALID_MEMORY, /* flags                        */
+  0,                        /* sock                         */
+  {                         /* gdfd                         */
+    NULL,                   /* _buf                         */
+    0,                      /* _bufsz                       */
+    0,                      /* _buf_len                     */
+    0,                      /* delim                        */
+    NULL,                   /* line                         */
+    0,                      /* line_len                     */
+    NULL,                   /* getdelimfd_read              */
+    NULL                    /* user_data                    */
+  },                        /* gdfd                         */
+  NULL,                     /* header_list                  */
+  0,                        /* num_headers                  */
+  NULL,                     /* address_list                 */
+  0,                        /* num_address                  */
+  NULL,                     /* attachment_list              */
+  0,                        /* num_attachment               */
+  SMTP_STATUS_NOMEM,        /* smtp_status_code status_code */
+  0,                        /* timeout_sec                  */
+  0,                        /* tls_on                       */
+  NULL                      /* cafile                       */
+#ifdef SMTP_OPENSSL
+  ,
+  NULL,                     /* tls                          */
+  NULL,                     /* tls_ctx                      */
+  NULL                      /* tls_bio                      */
+#endif /* SMTP_OPENSSL */
+};
+
+
+/**
  * Open a connection to an SMTP server and return the context.
  *
  * After successfully connecting and performing a handshake with the
@@ -2425,18 +2464,9 @@ smtp_open(const char *const server,
           struct smtp **smtp){
   struct smtp *snew;
 
-  /*
-   * This error structure used for the single error case where we cannot
-   * initially allocate memory. This makes it easier to propagate any
-   * error codes when calling the other header functions because the
-   * caller will always get a valid SMTP structure returned.
-   */
-  static struct smtp smtp_error = {0};
-
   if((snew = calloc(1, sizeof(**smtp))) == NULL){
-    smtp_error.flags = SMTP_FLAG_INVALID_MEMORY;
     *smtp = &smtp_error;
-    return smtp_status_code_set(*smtp, SMTP_STATUS_NOMEM);
+    return smtp_status_code_get(*smtp);
   }
   *smtp = snew;
 
