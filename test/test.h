@@ -74,6 +74,10 @@ void
 smtp_str_getdelimfd_free(struct str_getdelimfd *const gdfd);
 
 char *
+smtp_stpcpy(char *s1,
+            const char *s2);
+
+char *
 smtp_strdup(const char *s);
 
 char *

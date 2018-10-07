@@ -448,6 +448,29 @@ smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
 }
 
 /**
+ * Copy a string and get the pointer to the end of the copied buffer.
+ *
+ * This function behaves similar to POSIX stpcpy(), useful for
+ * concatenating multiple strings onto a buffer. It always adds a
+ * null-terminated byte at the end of the string.
+ *
+ * @param[in] s1 Destination buffer.
+ * @param[in] s2 Null-terminated source string to copy to @p s1.
+ * @return Pointer to location in @p s1 after the last copied byte.
+ */
+SMTP_LINKAGE char *
+smtp_stpcpy(char *s1,
+            const char *s2){
+  size_t i;
+
+  i = 0;
+  do{
+    s1[i] = s2[i];
+  } while(s2[i++] != '\0');
+  return &s1[i-1];
+}
+
+/**
  * Copy a string into a new dynamically allocated buffer.
  *
  * Returns a dynamically allocated string, with the same contents as the
@@ -1253,11 +1276,13 @@ smtp_puts_terminate(struct smtp *const smtp,
                     const char *const s){
   int rc;
   char *line;
+  char *concat;
 
   if((line = malloc(strlen(s) + 3)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
-  sprintf(line, "%s\r\n", s);
+  concat = smtp_stpcpy(line, s);
+  concat = smtp_stpcpy(concat, "\r\n");
   rc = smtp_puts(smtp, line);
   free(line);
   return rc;
@@ -1473,6 +1498,7 @@ smtp_auth_plain(struct smtp *const smtp,
   int login_len;
   char *login_b64;
   char *login_send;
+  char *concat;
 
   /* (1) */
   user_len = strlen(user);
@@ -1498,7 +1524,10 @@ smtp_auth_plain(struct smtp *const smtp,
     free(login_b64);
     return -1;
   }
-  sprintf(login_send, "AUTH PLAIN %s\r\n", login_b64);
+  concat = smtp_stpcpy(login_send, "AUTH PLAIN ");
+  concat = smtp_stpcpy(concat, login_b64);
+  concat = smtp_stpcpy(concat, "\r\n");
+
   free(login_b64);
   smtp_puts(smtp, login_send);
   free(login_send);
@@ -1534,6 +1563,7 @@ smtp_auth_login(struct smtp *const smtp,
   char *b64_user;
   char *b64_pass;
   char *login_str;
+  char *concat;
 
   /* (1) */
   if((b64_user = smtp_base64_encode(user, -1)) == NULL){
@@ -1545,7 +1575,10 @@ smtp_auth_login(struct smtp *const smtp,
     free(b64_user);
     return -1;
   }
-  sprintf(login_str, "AUTH LOGIN %s\r\n", b64_user);
+  concat = smtp_stpcpy(login_str, "AUTH LOGIN ");
+  concat = smtp_stpcpy(concat, b64_user);
+  concat = smtp_stpcpy(concat, "\r\n");
+
   free(b64_user);
   smtp_puts(smtp, login_str);
   free(login_str);
@@ -1605,6 +1638,7 @@ smtp_auth_cram_md5(struct smtp *const smtp,
   unsigned char *hmac_ret;
   char *challenge_hex;
   char *auth_concat;
+  char *concat;
   size_t auth_concat_len;
   char *b64_auth;
 
@@ -1649,7 +1683,9 @@ smtp_auth_cram_md5(struct smtp *const smtp,
     free(challenge_hex);
     return -1;
   }
-  sprintf(auth_concat, "%s %s", user, challenge_hex);
+  concat = smtp_stpcpy(auth_concat, user);
+  concat = smtp_stpcpy(concat, " ");
+  concat = smtp_stpcpy(concat, challenge_hex);
   free(challenge_hex);
 
   /* (6) */
@@ -1903,6 +1939,7 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
   char *data_double_dot;
   size_t bufsz;
   char *data_header_and_body;
+  char *concat;
 
   /*
    * Insert an extra dot for each line that begins with a dot. This will
@@ -1919,24 +1956,28 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
-  sprintf(data_header_and_body,
-          "MIME-Version: 1.0\r\n"
-          "Content-Type: multipart/mixed; boundary="
-          "%s" /* boundary */
-          "\r\n"
-          "\r\n"
-          "Multipart MIME message.\r\n"
-          "--"
-          "%s" /* boundary */
-          "\r\n"
-          "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
-          "\r\n"
-          "%s" /* data_double_dot */
-          "\r\n"
-          "\r\n",
-          boundary,
-          boundary,
-          data_double_dot);
+  concat = smtp_stpcpy(data_header_and_body,
+                       "MIME-Version: 1.0\r\n"
+                       "Content-Type: multipart/mixed; boundary=");
+  concat = smtp_stpcpy(concat,
+                       boundary);
+  concat = smtp_stpcpy(concat,
+                       "\r\n"
+                       "\r\n"
+                       "Multipart MIME message.\r\n"
+                       "--");
+  concat = smtp_stpcpy(concat,
+                       boundary);
+  concat = smtp_stpcpy(concat,
+                       "\r\n"
+                       "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
+                       "\r\n");
+  concat = smtp_stpcpy(concat,
+                       data_double_dot);
+  concat = smtp_stpcpy(concat,
+                       "\r\n"
+                       "\r\n");
+
   free(data_double_dot);
   smtp_puts(smtp, data_header_and_body);
   free(data_header_and_body);
@@ -1957,6 +1998,7 @@ smtp_print_mime_attachment(struct smtp *const smtp,
                            const struct smtp_attachment *const attachment){
   size_t bufsz;
   char *mime_attach_text;
+  char *concat;
 
   bufsz = SMTP_MIME_BOUNDARY_LEN       +
           strlen(attachment->name)     +
@@ -1966,22 +2008,25 @@ smtp_print_mime_attachment(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
-  sprintf(mime_attach_text,
-          "--"
-          "%s" /* boundary */
-          "\r\n"
-          "Content-Type: application/octet-stream\r\n"
-          "Content-Disposition: attachment; filename=\""
-          "%s" /* attachment->name */
-          "\"\r\n"
-          "Content-Transfer-Encoding: base64\r\n"
-          "\r\n"
-          "%s" /* attachment->b64_data */
-          "\r\n"
-          "\r\n",
-          boundary,
-          attachment->name,
-          attachment->b64_data);
+  concat = smtp_stpcpy(mime_attach_text,
+                       "--");
+  concat = smtp_stpcpy(concat,
+                       boundary);
+  concat = smtp_stpcpy(concat,
+                       "\r\n"
+                       "Content-Type: application/octet-stream\r\n"
+                       "Content-Disposition: attachment; filename=\"");
+  concat = smtp_stpcpy(concat,
+                       attachment->name);
+  concat = smtp_stpcpy(concat,
+                       "\"\r\n"
+                       "Content-Transfer-Encoding: base64\r\n"
+                       "\r\n");
+  concat = smtp_stpcpy(concat,
+                       attachment->b64_data);
+  concat = smtp_stpcpy(concat,
+                       "\r\n"
+                       "\r\n");
   smtp_puts(smtp, mime_attach_text);
   free(mime_attach_text);
   return smtp->status_code;
@@ -1998,9 +2043,12 @@ smtp_print_mime_attachment(struct smtp *const smtp,
 static int
 smtp_print_mime_end(struct smtp *const smtp,
                     const char *const boundary){
+  char *concat;
   char mime_end[2 + SMTP_MIME_BOUNDARY_LEN + 4 + 1];
 
-  sprintf(mime_end, "--%s--\r\n", boundary);
+  concat = smtp_stpcpy(mime_end, "--");
+  concat = smtp_stpcpy(concat, boundary);
+  concat = smtp_stpcpy(concat, "--\r\n");
   return smtp_puts(smtp, mime_end);
 }
 
@@ -2059,6 +2107,7 @@ smtp_print_header(struct smtp *const smtp,
                   const struct smtp_header *const header){
   size_t concat_len;
   char *header_concat;
+  char *concat;
   char *header_fmt;
 
   if(header->value == NULL){
@@ -2069,7 +2118,9 @@ smtp_print_header(struct smtp *const smtp,
   if((header_concat = malloc(concat_len)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
-  sprintf(header_concat, "%s: %s", header->key, header->value);
+  concat = smtp_stpcpy(header_concat, header->key);
+  concat = smtp_stpcpy(concat, ": ");
+  concat = smtp_stpcpy(concat, header->value);
 
   header_fmt = smtp_chunk_split(header_concat,
                                 SMTP_HEADER_CHUNKLEN,
@@ -2164,6 +2215,7 @@ smtp_mail_envelope_header(struct smtp *const smtp,
   const char *const SMTPUTF8 = " SMTPUTF8";
   size_t bufsz;
   char *envelope_address;
+  char *concat;
   const char *smtputf8_opt;
 
   bufsz = 14 + strlen(address->email) + strlen(SMTPUTF8) + 1;
@@ -2176,11 +2228,12 @@ smtp_mail_envelope_header(struct smtp *const smtp,
     smtputf8_opt = SMTPUTF8;
   }
 
-  sprintf(envelope_address,
-          "%s:<%s>%s\r\n",
-          header,
-          address->email,
-          smtputf8_opt);
+  concat = smtp_stpcpy(envelope_address, header);
+  concat = smtp_stpcpy(concat, ":<");
+  concat = smtp_stpcpy(concat, address->email);
+  concat = smtp_stpcpy(concat, ">");
+  concat = smtp_stpcpy(concat, smtputf8_opt);
+  concat = smtp_stpcpy(concat, "\r\n");
   smtp_puts(smtp, envelope_address);
   free(envelope_address);
 

@@ -569,6 +569,54 @@ smtp_unit_test_all_bin2hex(void){
 }
 
 /**
+ * Test harness for @ref smtp_stpcpy.
+ *
+ * @param[in] init   Set the destination buffer to this initial string.
+ * @param[in] s2     Concatenate this string into the destination buffer.
+ * @param[in] expect Expected string result.
+ */
+static void
+smtp_unit_test_stpcpy(const char *const init,
+                      const char *const s2,
+                      const char *const expect){
+  char *buf;
+  size_t bufsz;
+  char *endptr;
+  char *expect_ptr;
+
+  bufsz = strlen(init) + strlen(s2) + 1;
+  buf = malloc(bufsz);
+  assert(buf);
+
+  strcpy(buf, init);
+  endptr = buf + strlen(init);
+
+  endptr = smtp_stpcpy(endptr, s2);
+  expect_ptr = buf + bufsz - 1;
+  assert(endptr == expect_ptr);
+  assert(*endptr == '\0');
+  assert(strcmp(buf, expect) == 0);
+  free(buf);
+}
+
+/**
+ * Run all test cases for @ref smtp_stpcpy.
+ */
+static void
+smtp_unit_test_all_stpcpy(void){
+  smtp_unit_test_stpcpy("", "", "");
+  smtp_unit_test_stpcpy("", "a", "a");
+  smtp_unit_test_stpcpy("", "ab", "ab");
+  smtp_unit_test_stpcpy("", "abc", "abc");
+
+  smtp_unit_test_stpcpy("a", "", "a");
+  smtp_unit_test_stpcpy("ab", "", "ab");
+  smtp_unit_test_stpcpy("abc", "", "abc");
+
+  smtp_unit_test_stpcpy("a", "a", "aa");
+}
+
+/**
  * Test harness for @ref smtp_strdup.
  *
  * @param[in] s      String to duplicate.
@@ -1392,6 +1440,7 @@ smtp_unit_test_all(void){
   smtp_unit_test_all_base64_decode();
   smtp_unit_test_all_base64_encode();
   smtp_unit_test_all_bin2hex();
+  smtp_unit_test_all_stpcpy();
   smtp_unit_test_all_strdup();
   smtp_unit_test_all_str_replace();
   smtp_unit_test_all_smtp_utf8_charlen();
