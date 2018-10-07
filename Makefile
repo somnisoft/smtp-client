@@ -101,6 +101,11 @@ CFLAGS.gcc.debug     += $(CFLAGS.debug) $(CWARN.gcc)
 CFLAGS.gcc.release   += $(CFLAGS.release) $(CWARN.gcc)
 CFLAGS.clang.debug   += $(CFLAGS.debug) $(CFLAGS.clang) $(CWARN.clang)
 
+SCAN_BUILD = $(SILENT) scan-build -maxloop 100          \
+                                  -o $(BDIR)/scan-build \
+                                  --status-bugs         \
+             clang -c -o $(BDIR)/debug/scan-build-smtp.o src/smtp.c
+
 VFLAGS += -q
 VFLAGS += --error-exitcode=1
 VFLAGS += --gen-suppressions=yes
@@ -170,6 +175,7 @@ install: all
 
 test: all       \
       test_unit
+	$(SCAN_BUILD)
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/clang_test
 	$(VALGRIND_MEMCHECK) $(BDIR)/release/test_nossl
