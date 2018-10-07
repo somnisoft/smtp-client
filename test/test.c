@@ -257,7 +257,7 @@ smtp_str_list_free(struct smtp_str_list *const list){
  */
 static int
 smtp_str_split(const char *const s,
-               ssize_t slen,
+               long slen,
                const char *const delimiter,
                int limit,
                struct smtp_str_list *slist){
@@ -328,8 +328,8 @@ smtp_str_split(const char *const s,
 static size_t
 smtp_ffile_put_contents(FILE *stream,
                         const void *const data,
-                        ssize_t datasz){
-  ssize_t bytes_written;
+                        long datasz){
+  long bytes_written;
 
   bytes_written = 0;
 
@@ -366,7 +366,7 @@ smtp_ffile_put_contents(FILE *stream,
 static size_t
 smtp_file_put_contents(const char *const filename,
                        const void *const data,
-                       ssize_t datasz,
+                       long datasz,
                        int flags){
   FILE *fp;
   size_t bytes_written;
@@ -420,9 +420,9 @@ smtp_test_sleep(unsigned int seconds){
 static void
 smtp_unit_test_base64_decode(const char *const buf,
                              const char *const expect_str,
-                             ssize_t expect_str_len){
+                             long expect_str_len){
   unsigned char *decode;
-  ssize_t str_len;
+  long str_len;
 
   str_len = smtp_base64_decode(buf, &decode);
   if(expect_str){
@@ -471,7 +471,7 @@ smtp_unit_test_all_base64_decode(void){
  */
 static void
 smtp_unit_test_base64_encode(const char *const buf,
-                             ssize_t buflen,
+                             long buflen,
                              const char *const expect){
   char *result;
 
@@ -1199,7 +1199,7 @@ static int g_smtp_test_getdelimfd_fp_fail = 0;
  * @retval >=0 Number of bytes read.
  * @retval -1  Failed to read from the socket.
  */
-static ssize_t
+static long
 smtp_unit_test_getdelimfd_fp(struct str_getdelimfd *const gdfd,
                              void *buf,
                              size_t count){

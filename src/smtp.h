@@ -271,7 +271,7 @@ enum smtp_status_code
 smtp_attachment_add_mem(struct smtp *const smtp,
                         const char *const name,
                         const void *const data,
-                        ssize_t datasz);
+                        long datasz);
 
 void smtp_attachment_clear_all(struct smtp *const smtp);
 
@@ -414,9 +414,9 @@ struct str_getdelimfd{
    * info from the @ref str_getdelimfd struct which can contain file pointer,
    * socket connection, etc.
    */
-  ssize_t (*getdelimfd_read)(struct str_getdelimfd *const gdfd,
-                             void *buf,
-                             size_t count);
+  long (*getdelimfd_read)(struct str_getdelimfd *const gdfd,
+                          void *buf,
+                          size_t count);
 
   /**
    * User data which gets sent to the read handler function.

@@ -55,13 +55,13 @@ struct str_getdelimfd;
  */
 #define SMTP_DATE_MAX_SZ 32
 
-ssize_t
+long
 smtp_base64_decode(const char *const buf,
                    unsigned char **decode);
 
 char *
 smtp_base64_encode(const char *const buf,
-                   ssize_t buflen);
+                   long buflen);
 
 char *
 smtp_bin2hex(const unsigned char *const s,
@@ -91,7 +91,7 @@ smtp_utf8_charlen(unsigned char c);
 int
 smtp_str_has_nonascii_utf8(const char *const s);
 
-ssize_t
+long
 smtp_strnlen_utf8(const char *s,
                   size_t maxlen);
 
@@ -188,7 +188,7 @@ void *
 smtp_test_seam_realloc(void *ptr,
                        size_t size);
 
-ssize_t
+long
 smtp_test_seam_recv(int socket,
                     void *buffer,
                     size_t length,
@@ -201,7 +201,7 @@ smtp_test_seam_select(int nfds,
                       fd_set *errorfds,
                       struct timeval *timeout);
 
-ssize_t
+long
 smtp_test_seam_send(int socket,
                     const void *buffer,
                     size_t length,

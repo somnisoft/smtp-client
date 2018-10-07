@@ -39,6 +39,7 @@
 # include <sys/select.h>
 # include <sys/socket.h>
 # include <netdb.h>
+# include <unistd.h>
 #endif /* SMTP_IS_WINDOWS */
 
 #include <errno.h>
@@ -48,7 +49,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 #ifdef SMTP_OPENSSL
 # include <openssl/bio.h>
@@ -276,12 +276,12 @@ smtp_str_getdelimfd_read_timeout(struct smtp *const smtp){
  * @retval >=0 Number of bytes read.
  * @retval -1  Failed to read from the socket.
  */
-static ssize_t
+static long
 smtp_str_getdelimfd_read(struct str_getdelimfd *const gdfd,
                          void *buf,
                          size_t count){
   struct smtp *smtp;
-  ssize_t bytes_read;
+  long bytes_read;
 
   smtp = gdfd->user_data;
 
@@ -394,7 +394,7 @@ smtp_str_getdelimfd_free(struct str_getdelimfd *const gdfd){
 SMTP_LINKAGE enum str_getdelim_retcode
 smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
   size_t delim_pos;
-  ssize_t bytes_read;
+  long bytes_read;
   void *read_buf_ptr;
   char *buf_new;
   size_t buf_sz_remaining;
@@ -629,7 +629,7 @@ smtp_base64_encode_block(const char *const buf,
  */
 SMTP_LINKAGE char *
 smtp_base64_encode(const char *const buf,
-                   ssize_t buflen){
+                   long buflen){
   char *b64;
   size_t b64_sz;
   size_t buf_i;
@@ -781,13 +781,13 @@ smtp_base64_decode_block(const unsigned char *const buf,
  * @retval >=0 Length of the data stored in the decode parameter.
  * @retval -1  Memory allocation failure or invalid base64 byte sequences.
  */
-SMTP_LINKAGE ssize_t
+SMTP_LINKAGE long
 smtp_base64_decode(const char *const buf,
                    unsigned char **decode){
   size_t buf_len;
   size_t buf_i;
   unsigned char *b64_decode;
-  ssize_t decode_len;
+  long decode_len;
   int decode_block_len;
 
   *decode = NULL;
@@ -923,7 +923,7 @@ smtp_str_has_nonascii_utf8(const char *const s){
  * @retval maxlen    If length of s has more bytes than maxlen.
  * @retval -1        If @p s contains an invalid UTF-8 byte sequence.
  */
-SMTP_LINKAGE ssize_t
+SMTP_LINKAGE long
 smtp_strnlen_utf8(const char *s,
                   size_t maxlen){
   size_t i;
@@ -967,7 +967,7 @@ smtp_chunk_split(const char *const s,
   size_t chunk_i;
   size_t snew_i;
   size_t body_i;
-  ssize_t body_copy_len;
+  long body_copy_len;
 
   if(chunklen < 1){
     errno = EINVAL;
@@ -1338,11 +1338,16 @@ smtp_connect(struct smtp *const smtp,
     }
 
     if(connect(smtp->sock, res->ai_addr, res->ai_addrlen) < 0){
+#ifdef SMTP_IS_WINDOWS
+      closesocket(smtp->sock);
+#else /* POSIX */
       close(smtp->sock);
+#endif /* SMTP_IS_WINDOWS */
       smtp->sock = -1;
-      continue;
     }
-    break;
+    else{
+      break;
+    }
   }
 
   freeaddrinfo(res0);
@@ -1630,7 +1635,7 @@ smtp_auth_cram_md5(struct smtp *const smtp,
                    const char *const pass){
   struct smtp_command cmd;
   unsigned char *challenge_decoded;
-  ssize_t challenge_decoded_len;
+  long challenge_decoded_len;
   const char *key;
   int key_len;
   unsigned char hmac[EVP_MAX_MD_SIZE];
@@ -3091,7 +3096,7 @@ enum smtp_status_code
 smtp_attachment_add_mem(struct smtp *const smtp,
                         const char *const name,
                         const void *const data,
-                        ssize_t datasz){
+                        long datasz){
   size_t new_size;
   struct smtp_attachment *new_attachment_list;
   struct smtp_attachment *new_attachment;

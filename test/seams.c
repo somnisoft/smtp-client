@@ -483,7 +483,7 @@ smtp_test_seam_realloc(void *ptr,
  * @retval >=0 Number of bytes received.
  * @retval  -1 Failed to receive bytes over the network.
  */
-ssize_t
+long
 smtp_test_seam_recv(int socket,
                     void *buffer,
                     size_t length,
@@ -545,7 +545,7 @@ smtp_test_seam_select(int nfds,
  * @retval >=0 Number of bytes sent.
  * @retval  -1 Failed to send bytes over the network.
  */
-ssize_t
+long
 smtp_test_seam_send(int socket,
                     const void *buffer,
                     size_t length,
