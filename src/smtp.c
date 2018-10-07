@@ -1282,7 +1282,7 @@ smtp_puts_terminate(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
   concat = smtp_stpcpy(line, s);
-  concat = smtp_stpcpy(concat, "\r\n");
+  smtp_stpcpy(concat, "\r\n");
   rc = smtp_puts(smtp, line);
   free(line);
   return rc;
@@ -1526,7 +1526,7 @@ smtp_auth_plain(struct smtp *const smtp,
   }
   concat = smtp_stpcpy(login_send, "AUTH PLAIN ");
   concat = smtp_stpcpy(concat, login_b64);
-  concat = smtp_stpcpy(concat, "\r\n");
+  smtp_stpcpy(concat, "\r\n");
 
   free(login_b64);
   smtp_puts(smtp, login_send);
@@ -1577,7 +1577,7 @@ smtp_auth_login(struct smtp *const smtp,
   }
   concat = smtp_stpcpy(login_str, "AUTH LOGIN ");
   concat = smtp_stpcpy(concat, b64_user);
-  concat = smtp_stpcpy(concat, "\r\n");
+  smtp_stpcpy(concat, "\r\n");
 
   free(b64_user);
   smtp_puts(smtp, login_str);
@@ -1685,7 +1685,7 @@ smtp_auth_cram_md5(struct smtp *const smtp,
   }
   concat = smtp_stpcpy(auth_concat, user);
   concat = smtp_stpcpy(concat, " ");
-  concat = smtp_stpcpy(concat, challenge_hex);
+  smtp_stpcpy(concat, challenge_hex);
   free(challenge_hex);
 
   /* (6) */
@@ -1974,9 +1974,9 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
                        "\r\n");
   concat = smtp_stpcpy(concat,
                        data_double_dot);
-  concat = smtp_stpcpy(concat,
-                       "\r\n"
-                       "\r\n");
+  smtp_stpcpy(concat,
+              "\r\n"
+              "\r\n");
 
   free(data_double_dot);
   smtp_puts(smtp, data_header_and_body);
@@ -2024,9 +2024,9 @@ smtp_print_mime_attachment(struct smtp *const smtp,
                        "\r\n");
   concat = smtp_stpcpy(concat,
                        attachment->b64_data);
-  concat = smtp_stpcpy(concat,
-                       "\r\n"
-                       "\r\n");
+  smtp_stpcpy(concat,
+              "\r\n"
+              "\r\n");
   smtp_puts(smtp, mime_attach_text);
   free(mime_attach_text);
   return smtp->status_code;
@@ -2048,7 +2048,7 @@ smtp_print_mime_end(struct smtp *const smtp,
 
   concat = smtp_stpcpy(mime_end, "--");
   concat = smtp_stpcpy(concat, boundary);
-  concat = smtp_stpcpy(concat, "--\r\n");
+  smtp_stpcpy(concat, "--\r\n");
   return smtp_puts(smtp, mime_end);
 }
 
@@ -2120,7 +2120,7 @@ smtp_print_header(struct smtp *const smtp,
   }
   concat = smtp_stpcpy(header_concat, header->key);
   concat = smtp_stpcpy(concat, ": ");
-  concat = smtp_stpcpy(concat, header->value);
+  smtp_stpcpy(concat, header->value);
 
   header_fmt = smtp_chunk_split(header_concat,
                                 SMTP_HEADER_CHUNKLEN,
@@ -2233,7 +2233,7 @@ smtp_mail_envelope_header(struct smtp *const smtp,
   concat = smtp_stpcpy(concat, address->email);
   concat = smtp_stpcpy(concat, ">");
   concat = smtp_stpcpy(concat, smtputf8_opt);
-  concat = smtp_stpcpy(concat, "\r\n");
+  smtp_stpcpy(concat, "\r\n");
   smtp_puts(smtp, envelope_address);
   free(envelope_address);
 
