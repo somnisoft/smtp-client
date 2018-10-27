@@ -1801,8 +1801,11 @@ smtp_initiate_handshake(struct smtp *const smtp,
    12345678901234567890123456789012
            10        20        30 32 (bytes)
    @endverbatim
+
+   Add more bytes to the 32 maximum size to silence compiler warning on the
+   computed UTF offset.
  */
-#define SMTP_DATE_MAX_SZ 32
+#define SMTP_DATE_MAX_SZ (32 + 5)
 
 /**
  * Convert the time into an RFC 2822 formatted string.
@@ -1875,6 +1878,11 @@ smtp_date_rfc_2822(char *const date){
     return -1;
   }
 
+  /*
+   * After computing the offset, it will contain a maximum of 4 digits.
+   * For example, PST time zone will have an offset of -800 which will get
+   * formatted as -0800 in the sprintf call below.
+   */
   offset_utc = difftime(t_local, t_utc);
   offset_utc = offset_utc / 60 / 60 * 100;
 
@@ -1888,7 +1896,8 @@ smtp_date_rfc_2822(char *const date){
                tm_local.tm_min,
                tm_local.tm_sec, /* 0 - 60 (leap second) */
                offset_utc);
-  if(rc + 1 != SMTP_DATE_MAX_SZ){
+
+  if(rc + 1 != SMTP_DATE_MAX_SZ - 5){ /* See @ref SMTP_DATE_MAX_SZ for -5. */
     return -1;
   }
 
