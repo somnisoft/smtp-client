@@ -2101,9 +2101,10 @@ smtp_print_mime_email(struct smtp *const smtp,
 }
 
 /**
- * Email header lines should have no more than 78 characters.
+ * Email header lines should have no more than 78 characters and must
+ * not be more than 998 characters.
  */
-#define SMTP_HEADER_CHUNKLEN 76
+#define SMTP_HEADER_CHUNKLEN 996
 
 /**
  * Convert a header into an RFC 5322 formatted string and send it to the
@@ -2174,32 +2175,50 @@ smtp_append_address_to_header(struct smtp *const smtp,
   size_t i;
   size_t num_address_in_header;
   size_t header_value_sz;
+  size_t name_slen;
+  size_t email_slen;
+  size_t concat_len;
   struct smtp_address *address;
   char *header_value;
   char *header_value_new;
+  char *concat;
 
   num_address_in_header = 0;
   header_value_sz = 0;
   header_value = NULL;
+  concat_len = 0;
   for(i = 0; i < smtp->num_address; i++){
     address = &smtp->address_list[i];
     if(address->type == address_type){
-      /* + 3 -> ', ' */
-      header_value_sz += strlen(address->email) + 3;
+      name_slen = 0;
+      if(address->name){
+        name_slen = strlen(address->name);
+      }
+
+      email_slen = strlen(address->email);
+      /*                ', "'      NAME     '" <'      EMAIL     >  \0 */
+      header_value_sz +=  3  +  name_slen  +  3  +  email_slen + 1 + 1;
       if((header_value_new = realloc(header_value,
                                      header_value_sz)) == NULL){
         free(header_value);
         return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
       }
       header_value = header_value_new;
+      concat = header_value + concat_len;
       if(num_address_in_header > 0){
-        strcat(header_value, ", ");
-        strcat(header_value, address->email);
+        concat = smtp_stpcpy(concat, ", ");
       }
-      else{
-        strcpy(header_value, address->email);
+
+      if(name_slen){
+        concat = smtp_stpcpy(concat, "\"");
+        concat = smtp_stpcpy(concat, address->name);
+        concat = smtp_stpcpy(concat, "\" ");
       }
+      concat = smtp_stpcpy(concat, "<");
+      concat = smtp_stpcpy(concat, address->email);
+      concat = smtp_stpcpy(concat, ">");
       num_address_in_header += 1;
+      concat_len = concat - header_value;
     }
   }
 
@@ -2953,7 +2972,8 @@ void smtp_header_clear_all(struct smtp *const smtp){
  *                  (<) and (>).
  * @param[in] name  Name or description of the party. Must consist only of
  *                  printable characters, excluding the quote characters. If
- *                  set to NULL, no name will get associated with this email.
+ *                  set to NULL or empty string, no name will get associated
+ *                  with this email.
  * @return @ref smtp_status_code.
  */
 enum smtp_status_code

@@ -102,6 +102,26 @@
 #define SMTP_TEST_DEFAULT_CAFILE              NULL
 
 /**
+ * Default name used by the address in the From: header.
+ */
+#define SMTP_TEST_DEFAULT_FROM_NAME           "From Name"
+
+/**
+ * Default name used by all addresses in the To: header.
+ */
+#define SMTP_TEST_DEFAULT_TO_NAME             "To Name"
+
+/**
+ * Default name used by all addresses in the Cc: header.
+ */
+#define SMTP_TEST_DEFAULT_CC_NAME             "Cc Name"
+
+/**
+ * Default name used by all BCC addresses.
+ */
+#define SMTP_TEST_DEFAULT_BCC_NAME            "Bcc Name"
+
+/**
  * Some unit tests use this for testing encoding or splitting long strings.
  */
 #define STR_ALPHABET_LOWERCASE "abcdefghijklmnopqrstuvwxyz"
@@ -171,6 +191,43 @@ smtp_strndup(const char *s,
   }
 
   return ns;
+}
+
+/**
+ * Repeat a string multiple times and copy into new buffer.
+ *
+ * Used to test large inputs.
+ *
+ * @param[in] s String to repeat.
+ * @param[in] n Number of times to repeat @p s.
+ * @retval char* New buffer with text repeating @p s @p n times.
+ * @retval NULL  Memory allocation failure.
+ */
+static char *
+smtp_str_repeat(const char *const s,
+                size_t n){
+  char *snew;
+  size_t slen;
+  size_t snewlen;
+  size_t i;
+
+  slen = strlen(s);
+
+  if(n < 1 || slen < 1){
+    return smtp_strdup("");
+  }
+
+  snewlen = slen * n + 1;
+  if((snew = malloc(snewlen)) == NULL){
+    return NULL;
+  }
+
+  for(i = 0; i < n; i++){
+    memcpy(&snew[slen * i], s, slen);
+  }
+  snew[snewlen - 1] = '\0';
+
+  return snew;
 }
 
 /**
@@ -1660,19 +1717,19 @@ test_smtp_open_default(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        "");
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_CC,
                         config->email_to_2,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_CC_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_attachment_add_mem(config->smtp,
@@ -1751,13 +1808,13 @@ smtp_func_test_send_email(struct smtp_test_config *const config,
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_header_add(config->smtp, "Subject", subject);
@@ -1918,13 +1975,13 @@ smtp_func_test_attachment_path(struct smtp_test_config *const config,
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_attachment_add_path(config->smtp, name, path);
@@ -1974,13 +2031,13 @@ smtp_func_test_attachment_fp(struct smtp_test_config *const config,
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_attachment_add_fp(config->smtp, name, fp);
@@ -2039,13 +2096,13 @@ smtp_func_test_attachment_mem(struct smtp_test_config *const config,
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   for(i = 0; i < num_attachment; i++){
@@ -2154,17 +2211,17 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to_2,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_mail(config->smtp,
                  "This email should contain two TO recipients.");
@@ -2180,12 +2237,12 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_BCC,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_BCC_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_mail(config->smtp,
                  "This email should contain one BCC recipient.");
@@ -2201,17 +2258,17 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_BCC,
                         config->email_to_2,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_BCC_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_mail(config->smtp,
                  "This email should contain one TO and one BCC recipient.");
@@ -2227,22 +2284,22 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_CC,
                         config->email_to_2,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_CC_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_BCC,
                         config->email_to_3,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_BCC_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_mail(config->smtp,
                  "This email should contain one TO, CC, and BCC recipient.");
@@ -2258,7 +2315,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_mail(config->smtp,
                  "This email should not have a FROM address in the header.");
@@ -2275,12 +2332,12 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         "smtp-cli€nt-t€st@somnisoft.com",
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
   /**
    * @todo email successful queued but not sent.
@@ -2288,6 +2345,155 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_mail(config->smtp,
                  "This email should contain a FROM address with UTF-8.");
   assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
+ * Test different methods of adding names to emails when calling
+ * @ref smtp_address_add.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_all_names(struct smtp_test_config *const config){
+  int rc;
+  char *long_name;
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  /* NULL From and Blank To Names */
+  smtp_address_clear_all(config->smtp);
+  smtp_header_clear_all(config->smtp);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Null From Name and Blank To Name");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        NULL);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        "");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_mail(config->smtp,
+                 "This email should not have a name in From or To.");
+  assert(rc == SMTP_STATUS_OK);
+
+  /* Two To Names */
+  smtp_address_clear_all(config->smtp);
+  smtp_header_clear_all(config->smtp);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Two To Names");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        "Email Name 1");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to_2,
+                        "Email Name 2");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_mail(config->smtp,
+                 "This email should have two addresses with different names.");
+  assert(rc == SMTP_STATUS_OK);
+
+  /* Three To Names */
+  smtp_address_clear_all(config->smtp);
+  smtp_header_clear_all(config->smtp);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Three To Names");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        "Email Name 1");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to_2,
+                        "Email Name 2");
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to_3,
+                        "Email Name 3");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_mail(config->smtp,
+                 "This email should have three addresses with different names.");
+  assert(rc == SMTP_STATUS_OK);
+
+  /* Long email name */
+  long_name = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 2);
+  assert(long_name);
+  smtp_address_clear_all(config->smtp);
+  smtp_header_clear_all(config->smtp);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Long Email Names");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        long_name);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        long_name);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_mail(config->smtp,
+                 "This email should have a long alphabet name.");
+  assert(rc == SMTP_STATUS_OK);
+  free(long_name);
+
+  /* Very long email name */
+  long_name = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 100);
+  assert(long_name);
+  smtp_address_clear_all(config->smtp);
+  smtp_header_clear_all(config->smtp);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Very Long Email Names");
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        long_name);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        long_name);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_mail(config->smtp,
+                 "This email should have a very long alphabet name "
+                 "repeated 100 times.");
+  assert(rc == SMTP_STATUS_OK);
+  free(long_name);
 
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_OK);
@@ -2328,13 +2534,13 @@ smtp_func_test_header_custom_date(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_mail(config->smtp,
@@ -2379,13 +2585,13 @@ smtp_func_test_header_null_no_date(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_mail(config->smtp,
@@ -2434,13 +2640,13 @@ smtp_func_test_all_nodebug(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_TO,
                         config->email_to,
-                        "Test Email");
+                        SMTP_TEST_DEFAULT_TO_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_mail(config->smtp,
@@ -2817,7 +3023,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Invalid email address. */
@@ -2825,7 +3031,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         "<invalid>",
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_PARAM);
 
   /* Invalid email name. */
@@ -2842,7 +3048,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
@@ -2852,7 +3058,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        "test name");
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
@@ -2862,7 +3068,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        "test name");
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
@@ -3723,7 +3929,7 @@ test_failure_timeout(struct smtp_test_config *const config){
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
-                        NULL);
+                        SMTP_TEST_DEFAULT_FROM_NAME);
   assert(rc == SMTP_STATUS_OK);
 
   g_smtp_test_err_select_ctr = 0;
@@ -3781,6 +3987,7 @@ smtp_func_test_postfix(void){
   smtp_func_test_all_auth_methods(&config);
   smtp_func_test_all_attachments(&config);
   smtp_func_test_all_address(&config);
+  smtp_func_test_all_names(&config);
   smtp_func_test_all_headers(&config);
   smtp_func_test_all_nodebug(&config);
 }
