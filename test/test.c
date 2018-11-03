@@ -856,6 +856,219 @@ smtp_unit_test_all_strnlen_utf8(void){
 }
 
 /**
+ * Test harness for @ref smtp_fold_whitespace_get_offset.
+ *
+ * @param[in] s      String to fold.
+ * @param[in] maxlen Number of bytes for each line in the string (soft limit).
+ * @param[in] expect Expected folded string.
+ */
+static void
+smtp_unit_test_fold_whitespace_get_offset(const char *const s,
+                                          unsigned int maxlen,
+                                          size_t expect){
+  size_t result;
+
+  result = smtp_fold_whitespace_get_offset(s, maxlen);
+  assert(result == expect);
+}
+
+/**
+ * Run all tests for @ref smtp_fold_whitespace_get_offset.
+ */
+static void
+smtp_unit_test_all_fold_whitespace_get_offset(void){
+  smtp_unit_test_fold_whitespace_get_offset("", 0, 0);
+  smtp_unit_test_fold_whitespace_get_offset("", 1, 0);
+  smtp_unit_test_fold_whitespace_get_offset("", 2, 0);
+
+  smtp_unit_test_fold_whitespace_get_offset("a", 0, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a", 1, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a", 2, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a", 3, 1);
+
+  smtp_unit_test_fold_whitespace_get_offset("ab", 0, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab", 1, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab", 2, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab", 3, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab", 4, 2);
+
+  smtp_unit_test_fold_whitespace_get_offset("abc", 0, 3);
+  smtp_unit_test_fold_whitespace_get_offset("abc", 1, 3);
+  smtp_unit_test_fold_whitespace_get_offset("abc", 2, 3);
+  smtp_unit_test_fold_whitespace_get_offset("abc", 3, 3);
+  smtp_unit_test_fold_whitespace_get_offset("abc", 4, 3);
+  smtp_unit_test_fold_whitespace_get_offset("abc", 5, 3);
+
+  smtp_unit_test_fold_whitespace_get_offset("a b", 0, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b", 1, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b", 2, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b", 3, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b", 4, 3);
+  smtp_unit_test_fold_whitespace_get_offset("a b", 5, 3);
+
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 0, 2);
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 1, 2);
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 2, 2);
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 3, 2);
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 4, 2);
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 5, 4);
+  smtp_unit_test_fold_whitespace_get_offset("a \tb", 6, 4);
+
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 0, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 1, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 2, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 3, 1);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 4, 3);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 5, 3);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 6, 5);
+  smtp_unit_test_fold_whitespace_get_offset("a b c", 7, 5);
+
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 0, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 1, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 2, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 3, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 4, 2);
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 5, 4);
+  smtp_unit_test_fold_whitespace_get_offset("ab c", 6, 4);
+
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 0, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 1, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 2, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 3, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 4, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 5, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 6, 3);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 7, 6);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 8, 7);
+  smtp_unit_test_fold_whitespace_get_offset(" ab cd ", 9, 7);
+
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  0, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  1, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  2, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  3, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  4, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  5, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  6, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  7, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  8, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ",  9, 5);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ", 10, 9);
+  smtp_unit_test_fold_whitespace_get_offset("\t ab\t cd\t ", 11, 10);
+
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 0, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 1, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 2, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 8, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 9, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 10, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 10, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 10, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 10, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 10, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: Test Email WS", 10, 8);
+
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 0, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 1, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 2, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 3, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 4, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 5, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 6, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 7, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 8, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 9, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject:", 10, 8);
+
+  smtp_unit_test_fold_whitespace_get_offset("Subject: ", 0, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: ", 9, 8);
+  smtp_unit_test_fold_whitespace_get_offset("Subject: ", 10, 9);
+}
+
+/**
+ * Test harness for @ref smtp_fold_whitespace.
+ *
+ * @param[in] s      String to fold.
+ * @param[in] maxlen Number of bytes for each line in the string (soft limit).
+ * @param[in] expect Expected folded string.
+ */
+static void
+smtp_unit_test_fold_whitespace(const char *const s,
+                               unsigned int maxlen,
+                               const char *const expect){
+  char *result;
+
+  result = smtp_fold_whitespace(s, maxlen);
+  if(expect == NULL){
+    assert(result == expect);
+  }
+  else{
+    assert(strcmp(result, expect) == 0);
+    free(result);
+  }
+}
+
+/**
+ * Run all tests for @ref smtp_fold_whitespace.
+ */
+static void
+smtp_unit_test_all_fold_whitespace(void){
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 5,
+                                 "Subject:\r\n"
+                                 " Email\r\n"
+                                 " Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 14,
+                                 "Subject:\r\n"
+                                 " Email Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 15,
+                                 "Subject:\r\n"
+                                 " Email Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 16,
+                                 "Subject:\r\n"
+                                 " Email Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 17,
+                                 "Subject: Email\r\n"
+                                 " Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 18,
+                                 "Subject: Email\r\n"
+                                 " Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 19,
+                                 "Subject: Email\r\n"
+                                 " Test");
+  smtp_unit_test_fold_whitespace("Subject: Email Test",
+                                 50,
+                                 "Subject: Email Test");
+  smtp_unit_test_fold_whitespace("",
+                                 50,
+                                 "");
+  smtp_unit_test_fold_whitespace("Subject: Long Email Subject Line [123456789]",
+                                 17,
+                                 "Subject: Long\r\n"
+                                 " Email Subject\r\n"
+                                 " Line\r\n"
+                                 " [123456789]");
+  smtp_unit_test_fold_whitespace(STR_ALPHABET_LOWERCASE,
+                                 10,
+                                 STR_ALPHABET_LOWERCASE);
+
+  /* Memory allocation failure. */
+  g_smtp_test_err_realloc_ctr = 0;
+  smtp_unit_test_fold_whitespace("a b c", 2, NULL);
+  g_smtp_test_err_realloc_ctr = -1;
+
+  /* Memory allocation failure second loop. */
+  g_smtp_test_err_realloc_ctr = 1;
+  smtp_unit_test_fold_whitespace("Subject: Email Test", 2, NULL);
+  g_smtp_test_err_realloc_ctr = -1;
+}
+
+/**
  * Test harness for @ref smtp_chunk_split.
  *
  * @param[in] s        The string to chunk.
@@ -1503,6 +1716,8 @@ smtp_unit_test_all(void){
   smtp_unit_test_all_smtp_utf8_charlen();
   smtp_unit_test_all_smtp_str_has_nonascii_utf8();
   smtp_unit_test_all_strnlen_utf8();
+  smtp_unit_test_all_fold_whitespace_get_offset();
+  smtp_unit_test_all_fold_whitespace();
   smtp_unit_test_all_chunk_split();
   smtp_unit_test_all_file_get_contents();
   smtp_unit_test_all_parse_cmd_line();
@@ -2126,6 +2341,65 @@ smtp_func_test_attachment_mem(struct smtp_test_config *const config,
 }
 
 /**
+ * Test sending long text attachments.
+ *
+ * @param[in] config Server connection details.
+ */
+static void
+smtp_func_test_attachment_long_text(struct smtp_test_config *const config){
+  int rc;
+  char *long_text;
+
+  /* Send Large attachment attachment with repeated text. */
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_auth(config->smtp,
+                 SMTP_TEST_DEFAULT_AUTH_METHOD,
+                 config->user,
+                 config->pass);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        SMTP_TEST_DEFAULT_TO_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  long_text = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 5000);
+  assert(long_text);
+  rc = smtp_attachment_add_mem(config->smtp,
+			   "alphabet-repeat.txt",
+			   long_text,
+			   -1);
+  assert(rc == SMTP_STATUS_OK);
+  free(long_text);
+
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Long Text Attachment");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_mail(config->smtp,
+                 "This email should contain long text attachment");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
  * Run all tests for @ref smtp_attachment_add_mem.
  *
  * @param[in] config Server connection details.
@@ -2137,6 +2411,8 @@ smtp_func_test_all_attachments_mem(struct smtp_test_config *const config){
 
   /* Send 10 attachments in one email. */
   smtp_func_test_attachment_mem(config, 10);
+
+  smtp_func_test_attachment_long_text(config);
 }
 
 /**
@@ -2148,9 +2424,9 @@ static void
 smtp_func_test_all_attachments_path(struct smtp_test_config *const config){
   /* Send a PDF test file using the path interface. */
   smtp_func_test_attachment_path(config,
-                                       "test.pdf",
-                                       "test/test.pdf",
-                                       SMTP_STATUS_OK);
+                                 "test.pdf",
+                                 "test/test.pdf",
+                                 SMTP_STATUS_OK);
 
   /* Try to send a file that does not exist. */
   smtp_func_test_attachment_path(config,
@@ -2603,6 +2879,61 @@ smtp_func_test_header_null_no_date(struct smtp_test_config *const config){
 }
 
 /**
+ * Test sending long headers.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_header_long(struct smtp_test_config *const config){
+  int rc;
+  char *long_text;
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  smtp_header_clear_all(config->smtp);
+
+  long_text = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 1000);
+  assert(long_text);
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       long_text);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_header_add(config->smtp,
+                       "Custom",
+                       long_text);
+  assert(rc == SMTP_STATUS_OK);
+
+  free(long_text);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        SMTP_TEST_DEFAULT_TO_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_mail(config->smtp,
+                 "This email should contain very long"
+                 " Subject and Custom headers.");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
  * Test multiple ways of sending to different headers.
  *
  * @param[in] config SMTP server context.
@@ -2611,6 +2942,54 @@ static void
 smtp_func_test_all_headers(struct smtp_test_config *const config){
   smtp_func_test_header_custom_date(config);
   smtp_func_test_header_null_no_date(config);
+  smtp_func_test_header_long(config);
+}
+
+/**
+ * Test different scenarios with email bodies.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_all_body(struct smtp_test_config *const config){
+  int rc;
+  char *long_body;
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: Very Long Email Body");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        SMTP_TEST_DEFAULT_TO_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  long_body = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 5000);
+  assert(long_body);
+
+  rc = smtp_mail(config->smtp, long_body);
+  assert(rc == SMTP_STATUS_OK);
+
+  free(long_body);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
 }
 
 /**
@@ -3133,6 +3512,13 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
   g_smtp_test_err_calloc_ctr = -1;
 
+  /* Memory allocation failure when splitting base64 lines into chunks. */
+  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  g_smtp_test_err_calloc_ctr = 1;
+  rc = smtp_attachment_add_mem(config->smtp, "valid", "test", -1);
+  assert(rc == SMTP_STATUS_NOMEM);
+  g_smtp_test_err_calloc_ctr = -1;
+
   /* Invalid SMTP status code. */
   smtp_status_code_set(config->smtp, SMTP_STATUS_PARAM);
   rc = smtp_attachment_add_fp(config->smtp, "test", stdin);
@@ -3406,15 +3792,15 @@ test_failure_mail(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
-  /* Failed @ref smtp_chunk_split in @ref smtp_print_header. */
+  /* Failed @ref smtp_fold_whitespace in @ref smtp_print_header. */
   test_smtp_open_default(config);
-  g_smtp_test_err_calloc_ctr = 4;
+  g_smtp_test_err_realloc_ctr = 8;
   rc = smtp_mail(config->smtp, "body");
-  g_smtp_test_err_calloc_ctr = -1;
+  g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
-  /* Failed @ref smtp_puts in @ref smtp_print_header. */
+  /* Failed @ref smtp_puts_terminate in @ref smtp_print_header. */
   test_smtp_open_default(config);
   g_smtp_test_err_send_ctr = 4;
   g_smtp_test_err_ssl_write_ctr = 4;
@@ -3430,7 +3816,7 @@ test_failure_mail(struct smtp_test_config *const config){
    * @ref smtp_str_replace.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_realloc_ctr = 7;
+  g_smtp_test_err_realloc_ctr = 11;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -3442,7 +3828,7 @@ test_failure_mail(struct smtp_test_config *const config){
    * malloc after @ref smtp_str_replace.
    */
   test_smtp_open_default(config);
-  g_smtp_test_err_malloc_ctr = 27;
+  g_smtp_test_err_malloc_ctr = 31;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -3464,7 +3850,7 @@ test_failure_mail(struct smtp_test_config *const config){
 
   /* Memory allocation failure in @ref smtp_print_mime_attachment. */
   test_smtp_open_default(config);
-  g_smtp_test_err_malloc_ctr = 29;
+  g_smtp_test_err_malloc_ctr = 33;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_malloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
@@ -3989,7 +4375,62 @@ smtp_func_test_postfix(void){
   smtp_func_test_all_address(&config);
   smtp_func_test_all_names(&config);
   smtp_func_test_all_headers(&config);
+  smtp_func_test_all_body(&config);
   smtp_func_test_all_nodebug(&config);
+}
+
+
+/**
+ * Send attachment to test gmail account.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_gmail_attachment(struct smtp_test_config *const config){
+  const char *const name = "test.pdf";
+  const char *const path = "test/test.pdf";
+  int rc;
+
+  strcpy(config->subject, "SMTP Test: GMail Attachment (file path)");
+  strcpy(config->body, "This email should contain a pdf attachment");
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_SECURITY_STARTTLS,
+                 SMTP_DEBUG,
+                 NULL,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_PLAIN,
+                 config->user,
+                 config->pass);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        SMTP_TEST_DEFAULT_TO_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_attachment_add_path(config->smtp, name, path);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_header_add(config->smtp, "Subject", config->subject);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_mail(config->smtp, config->body);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
 }
 
 /**
@@ -4015,6 +4456,8 @@ smtp_func_test_gmail(void){
                             SMTP_TEST_DEFAULT_CAFILE,
                             "SMTP Test: gmail",
                             "test email sent through gmail server");
+
+  smtp_func_test_gmail_attachment(&config);
 }
 
 /**

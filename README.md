@@ -51,9 +51,12 @@ The following example code demonstrates how to use the library.
 #define MAIL_AUTH                SMTP_AUTH_PLAIN
 #define MAIL_USER                "mail@example.com"
 #define MAIL_PASS                "password"
-#define MAIL_SUBJECT             "Test Email"
-#define MAIL_BODY                "Test Email Body"
+#define MAIL_FROM                "mail@example.com"
+#define MAIL_FROM_NAME           "From Name"
+#define MAIL_SUBJECT             "Subject Line"
+#define MAIL_BODY                "Email Body"
 #define MAIL_TO                  "to@example.com"
+#define MAIL_TO_NAME             "To Name"
 int main(void)
 {
   struct smtp *smtp;
@@ -70,12 +73,12 @@ int main(void)
                  MAIL_PASS);
   rc = smtp_address_add(smtp,
                         SMTP_ADDRESS_FROM,
-                        MAIL_USER,
-                        MAIL_USER);
+                        MAIL_FROM,
+                        MAIL_FROM_NAME);
   rc = smtp_address_add(smtp,
                         SMTP_ADDRESS_TO,
                         MAIL_TO,
-                        MAIL_TO);
+                        MAIL_TO_NAME);
   rc = smtp_header_add(smtp,
                        "Subject",
                        MAIL_SUBJECT);

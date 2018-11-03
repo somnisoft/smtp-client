@@ -95,6 +95,14 @@ long
 smtp_strnlen_utf8(const char *s,
                   size_t maxlen);
 
+size_t
+smtp_fold_whitespace_get_offset(const char *const s,
+                                unsigned int maxlen);
+
+char *
+smtp_fold_whitespace(const char *const s,
+                     unsigned int maxlen);
+
 char *
 smtp_chunk_split(const char *const s,
                  int chunklen,

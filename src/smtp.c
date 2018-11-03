@@ -599,7 +599,7 @@ static void
 smtp_base64_encode_block(const char *const buf,
                          size_t buf_block_sz,
                          char *const b64){
-  char inb[3] = {0};
+  unsigned char inb[3] = {0};
   unsigned char in_idx[4] = {0};
   char outb[5] = {'=', '=', '=', '=', '\0'};
   size_t i;
@@ -944,6 +944,145 @@ smtp_strnlen_utf8(const char *s,
     }
   }
   return i;
+}
+
+/**
+ * Get the offset of the next whitespace block to process folding.
+ *
+ * If a string does not have whitespace before @p maxlen, then the index
+ * will get returned past @p maxlen. Also returns the index of NULL character
+ * if that fits within the next block. The caller must check for the NULL
+ * index to indicate the last block. It will skip past any leading whitespace
+ * even if that means going over maxlen.
+ *
+ * Examples:
+ * @ref smtp_fold_whitespace_get_offset ("Subject: Test WS", 1/2/8/9/10/13) -> 8
+ * @ref smtp_fold_whitespace_get_offset ("Subject: Test WS", 14/15) -> 13
+ * @ref smtp_fold_whitespace_get_offset ("Subject: Test WS", 17/18) -> 16
+ *
+ * @param[in] s      String to get offset from.
+ * @param[in] maxlen Number of bytes for each line in the string (soft limit).
+ * @return Index in @p s.
+ */
+SMTP_LINKAGE size_t
+smtp_fold_whitespace_get_offset(const char *const s,
+                                unsigned int maxlen){
+  size_t i;
+  size_t offset_i;
+
+  i = 0;
+  offset_i = 0;
+
+  while(s[i] == ' ' || s[i] == '\t'){
+    i += 1;
+  }
+
+  while(s[i]){
+    if(s[i] == ' ' || s[i] == '\t'){
+      do{
+        i += 1;
+      } while(s[i] == ' ' || s[i] == '\t');
+      i -= 1;
+      if(i < maxlen || !offset_i){
+        offset_i = i;
+      }
+      else{
+        break;
+      }
+    }
+    i += 1;
+  }
+
+  if(!offset_i || i < maxlen){
+    offset_i = i;
+  }
+
+  return offset_i;
+}
+
+/**
+ * Email header lines should have no more than 78 characters and must
+ * not be more than 998 characters.
+ */
+#define SMTP_LINE_MAX 78
+
+/**
+ * Fold a line at whitespace characters.
+ *
+ * This function tries to keep the total number of characters per line under
+ * @p maxlen, but does not guarantee this. For really long text with no
+ * whitespace, the line will still extend beyond @p maxlen and possibly
+ * beyond the RFC limit as defined in @ref SMTP_LINE_MAX. This is by design
+ * and intended to keep the algorithm simpler to implement. Users sending
+ * long headers with no space characters should not assume that will work,
+ * but modern email systems may correctly process those headers anyways.
+ *
+ * Lines get folded by adding a [CR][LF] and then two space characters on the
+ * beginning of the next line. For example, this Subject line:
+ *
+ * Subject: Email[WS][WS]Header
+ *
+ * Would get folded like this (assuming a small @p maxlen):
+ *
+ * Subject: Email[WS][CR][LF]
+ * [WS][WS]Header
+ *
+ * @param[in] s      String to fold.
+ * @param[in] maxlen Number of bytes for each line in the string (soft limit).
+ *                   The minimum value of this parameter is 3 and it will get
+ *                   forced to 3 if the provided value is less.
+ * @retval char* Pointer to an allocated string with the contents split into
+ *               separate lines. The caller must free this memory when done.
+ * @retval NULL  Memory allocation failed.
+ */
+SMTP_LINKAGE char *
+smtp_fold_whitespace(const char *const s,
+                     unsigned int maxlen){
+  const char *const SMTP_LINE_FOLD_STR = "\r\n ";
+  size_t end_slen;
+  size_t s_i;
+  size_t buf_i;
+  size_t bufsz;
+  size_t ws_offset;
+  char *buf;
+  char *buf_new;
+
+  if(maxlen < 3){
+    maxlen = 3;
+  }
+
+  end_slen = strlen(SMTP_LINE_FOLD_STR);
+
+  s_i = 0;
+  buf_i = 0;
+  bufsz = 0;
+  buf = NULL;
+
+  while(1){
+    ws_offset = smtp_fold_whitespace_get_offset(&s[s_i], maxlen - 2);
+
+    bufsz += ws_offset + end_slen + 1;
+    buf_new = realloc(buf, bufsz);
+    if(buf_new == NULL){
+      free(buf);
+      return NULL;
+    }
+    buf = buf_new;
+    memcpy(&buf[buf_i], &s[s_i], ws_offset);
+    buf[buf_i + ws_offset] = '\0';
+
+    if(s[s_i + ws_offset] == '\0'){
+      break;
+    }
+
+    buf_i += ws_offset;
+    strcat(&buf[buf_i], SMTP_LINE_FOLD_STR);
+    buf_i += end_slen;
+
+    /*                 WS */
+    s_i += ws_offset + 1;
+  }
+  return buf;
 }
 
 /**
@@ -2101,12 +2240,6 @@ smtp_print_mime_email(struct smtp *const smtp,
 }
 
 /**
- * Email header lines should have no more than 78 characters and must
- * not be more than 998 characters.
- */
-#define SMTP_HEADER_CHUNKLEN 996
-
-/**
  * Convert a header into an RFC 5322 formatted string and send it to the
  * SMTP server.
  *
@@ -2137,21 +2270,13 @@ smtp_print_header(struct smtp *const smtp,
   concat = smtp_stpcpy(concat, ": ");
   smtp_stpcpy(concat, header->value);
 
-  header_fmt = smtp_chunk_split(header_concat,
-                                SMTP_HEADER_CHUNKLEN,
-                                "\r\n  ");
+  header_fmt = smtp_fold_whitespace(header_concat, SMTP_LINE_MAX);
   free(header_concat);
   if(header_fmt == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
-  /*
-   * Delete two space characters at the end of the last chunk because
-   * the next line should not get indented.
-   */
-  header_fmt[strlen(header_fmt) - 2] = '\0';
-
-  smtp_puts(smtp, header_fmt);
+  smtp_puts_terminate(smtp, header_fmt);
   free(header_fmt);
   return smtp->status_code;
 }
@@ -3129,6 +3254,7 @@ smtp_attachment_add_mem(struct smtp *const smtp,
   size_t new_size;
   struct smtp_attachment *new_attachment_list;
   struct smtp_attachment *new_attachment;
+  char *b64_encode;
 
   if(smtp->status_code != SMTP_STATUS_OK){
     return smtp->status_code;
@@ -3151,10 +3277,19 @@ smtp_attachment_add_mem(struct smtp *const smtp,
   new_attachment = &new_attachment_list[smtp->num_attachment];
 
   new_attachment->name = smtp_strdup(name);
-  new_attachment->b64_data = smtp_base64_encode(data, datasz);
-  if(new_attachment->name == NULL || new_attachment->b64_data == NULL){
+  b64_encode = smtp_base64_encode(data, datasz);
+  if(new_attachment->name == NULL || b64_encode == NULL){
     free(new_attachment->name);
-    free(new_attachment->b64_data);
+    free(b64_encode);
+    return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
+  }
+
+  new_attachment->b64_data = smtp_chunk_split(b64_encode,
+                                              SMTP_LINE_MAX,
+                                              "\r\n");
+  free(b64_encode);
+  if(new_attachment->b64_data == NULL){
+    free(new_attachment->name);
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
