@@ -133,6 +133,24 @@ int g_smtp_test_err_select_ctr = -1;
 int g_smtp_test_err_send_ctr = -1;
 
 /**
+ * See @ref g_smtp_test_err_si_add_size_t_ctr
+ * and @ref test_seams_countdown_global.
+ */
+int g_smtp_test_err_si_add_size_t_ctr = -1;
+
+/**
+ * See @ref g_smtp_test_err_si_sub_size_t_ctr
+ * and @ref test_seams_countdown_global.
+ */
+int g_smtp_test_err_si_sub_size_t_ctr = -1;
+
+/**
+ * See @ref g_smtp_test_err_si_mul_size_t_ctr
+ * and @ref test_seams_countdown_global.
+ */
+int g_smtp_test_err_si_mul_size_t_ctr = -1;
+
+/**
  * See @ref g_smtp_test_err_socket_ctr and @ref test_seams_countdown_global.
  */
 int g_smtp_test_err_socket_ctr = -1;
@@ -193,6 +211,16 @@ int g_smtp_test_err_sprintf_ctr = -1;
 int g_smtp_test_err_sprintf_rc = 0;
 
 /**
+ * See @ref g_smtp_test_strlen_custom_ret.
+ */
+int g_smtp_test_strlen_custom_ret = 0;
+
+/**
+ * See @ref g_smtp_test_strlen_ret_value.
+ */
+size_t g_smtp_test_strlen_ret_value = 0;
+
+/**
  * See @ref g_smtp_test_time_custom_ret.
  */
 int g_smtp_test_time_custom_ret = 0;
@@ -214,7 +242,7 @@ time_t g_smtp_test_time_ret_value = 0;
  * @retval 0 The counter has been decremented, but did not reach -1 yet.
  * @retval 1 The counter has reached -1.
  */
-static int
+int
 smtp_test_seam_dec_err_ctr(int *const test_err_ctr){
   if(*test_err_ctr >= 0){
     *test_err_ctr -= 1;
@@ -745,6 +773,25 @@ smtp_test_seam_sprintf(char *s,
   rc = vsprintf(s, format, ap);
   va_end(ap);
   return rc;
+}
+
+/**
+ * Allows the test harness to control the return value of strlen().
+ *
+ * @param[in] s Null-terminated string.
+ * @return Length of @p s.
+ */
+size_t
+smtp_test_seam_strlen(const char *s){
+  size_t result;
+
+  if(g_smtp_test_strlen_custom_ret){
+    result = g_smtp_test_strlen_ret_value;
+  }
+  else{
+    result = strlen(s);
+  }
+  return result;
 }
 
 /**

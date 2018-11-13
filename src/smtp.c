@@ -58,6 +58,13 @@
 # include <openssl/x509v3.h>
 #endif /* SMTP_OPENSSL */
 
+#ifndef SIZE_MAX
+/**
+ * Maximum value of size_t type.
+ */
+# define SIZE_MAX ((size_t)(-1))
+#endif /* SIZE_MAX */
+
 /**
  * Get access to the @ref smtp_result_code and @ref smtp_command definitions.
  */
@@ -239,6 +246,108 @@ struct smtp{
 };
 
 /**
+ * Check if adding a size_t value will cause a wrap.
+ *
+ * @param[in]  a      Add this value with @p b.
+ * @param[in]  b      Add this value with @p a.
+ * @param[out] result Save the addition to this buffer. Does not
+ *                    perform the addition if set to NULL.
+ * @retval 1 Value wrapped.
+ * @retval 0 Value did not wrap.
+ */
+SMTP_LINKAGE int
+smtp_si_add_size_t(const size_t a,
+                   const size_t b,
+                   size_t *const result){
+  int wraps;
+
+#ifdef SMTP_TEST
+  if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_si_add_size_t_ctr)){
+    return 1;
+  }
+#endif /* SMTP_TEST */
+
+  if(SIZE_MAX - a < b){
+    wraps = 1;
+  }
+  else{
+    wraps = 0;
+  }
+  if(result){
+    *result = a + b;
+  }
+  return wraps;
+}
+
+/**
+ * Check if subtracting a size_t value will cause wrap.
+ *
+ * @param[in]  a      Subtract this value by @p b.
+ * @param[in]  b      Subtract this value from @p a.
+ * @param[out] result Save the subtraction to this buffer. Does not
+ *                    perform the subtraction if set to NULL.
+ * @retval 1 Value wrapped.
+ * @retval 0 Value did not wrap.
+ */
+SMTP_LINKAGE int
+smtp_si_sub_size_t(const size_t a,
+                   const size_t b,
+                   size_t *const result){
+  int wraps;
+
+#ifdef SMTP_TEST
+  if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_si_sub_size_t_ctr)){
+    return 1;
+  }
+#endif /* SMTP_TEST */
+
+  if(a < b){
+    wraps = 1;
+  }
+  else{
+    wraps = 0;
+  }
+  if(result){
+    *result = a - b;
+  }
+  return wraps;
+}
+
+/**
+ * Check if multiplying a size_t value will cause a wrap.
+ *
+ * @param[in]  a      Multiply this value with @p b.
+ * @param[in]  b      Multiply this value with @p a.
+ * @param[out] result Save the multiplication to this buffer. Does not
+ *                    perform the multiplication if set to NULL.
+ * @retval 1 Value wrapped.
+ * @retval 0 Value did not wrap.
+ */
+SMTP_LINKAGE int
+smtp_si_mul_size_t(const size_t a,
+                   const size_t b,
+                   size_t *const result){
+  int wraps;
+
+#ifdef SMTP_TEST
+  if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_si_mul_size_t_ctr)){
+    return 1;
+  }
+#endif /* SMTP_TEST */
+
+  if(b != 0 && a > SIZE_MAX / b){
+    wraps = 1;
+  }
+  else{
+    wraps = 0;
+  }
+  if(result){
+    *result = a * b;
+  }
+  return wraps;
+}
+
+/**
  * Wait until more data has been made available on the socket read end.
  *
  * @param[in] smtp SMTP client context.
@@ -347,20 +456,29 @@ smtp_str_getdelimfd_search_delim(const char *const buf,
  *            line buffer.
  * @retval -1 Failed to allocate memory for the new line buffer.
  */
-static int
+SMTP_LINKAGE int
 smtp_str_getdelimfd_set_line_and_buf(struct str_getdelimfd *const gdfd,
                                      size_t copy_len){
+  size_t copy_len_inc;
+  size_t nbytes_to_shift;
+  size_t new_buf_len;
+
   if(gdfd->line){
     free(gdfd->line);
+    gdfd->line = NULL;
   }
-  if((gdfd->line = calloc(1, copy_len + 1)) == NULL){
+
+  if(smtp_si_add_size_t(copy_len, 1, &copy_len_inc) ||
+     smtp_si_add_size_t((size_t)gdfd->_buf, copy_len_inc, NULL) ||
+     smtp_si_sub_size_t(gdfd->_buf_len, copy_len, &nbytes_to_shift) ||
+     (gdfd->line = calloc(1, copy_len_inc)) == NULL){
     return -1;
   }
   memcpy(gdfd->line, gdfd->_buf, copy_len);
   gdfd->line_len = copy_len;
-  memmove(gdfd->_buf, gdfd->_buf + copy_len + 1, gdfd->_buf_len - copy_len);
-  if(gdfd->_buf_len != 0){
-    gdfd->_buf_len -= copy_len + 1;
+  memmove(gdfd->_buf, gdfd->_buf + copy_len_inc, nbytes_to_shift);
+  if(smtp_si_sub_size_t(nbytes_to_shift, 1, &new_buf_len) == 0){
+    gdfd->_buf_len = new_buf_len;
   }
   return 0;
 }
@@ -424,9 +542,18 @@ smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
       return STRING_GETDELIMFD_DONE;
     }
 
-    buf_sz_remaining = gdfd->_bufsz - gdfd->_buf_len;
+    if(smtp_si_sub_size_t(gdfd->_bufsz, gdfd->_buf_len, &buf_sz_remaining)){
+      smtp_str_getdelimfd_free(gdfd);
+      return STRING_GETDELIMFD_ERROR;
+    }
+
     if(buf_sz_remaining < SMTP_GETDELIM_READ_SZ){
-      buf_sz_new = buf_sz_remaining + SMTP_GETDELIM_READ_SZ;
+      if(smtp_si_add_size_t(buf_sz_remaining,
+                            SMTP_GETDELIM_READ_SZ,
+                            &buf_sz_new)){
+        smtp_str_getdelimfd_free(gdfd);
+        return STRING_GETDELIMFD_ERROR;
+      }
       buf_new = realloc(gdfd->_buf, buf_sz_new);
       if(buf_new == NULL){
         smtp_str_getdelimfd_free(gdfd);
@@ -435,15 +562,20 @@ smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
       gdfd->_buf = buf_new;
       gdfd->_bufsz = buf_sz_new;
     }
+
+    if(smtp_si_add_size_t((size_t)gdfd->_buf, gdfd->_buf_len, NULL)){
+      smtp_str_getdelimfd_free(gdfd);
+      return STRING_GETDELIMFD_ERROR;
+    }
     read_buf_ptr = gdfd->_buf + gdfd->_buf_len;
     bytes_read = (*gdfd->getdelimfd_read)(gdfd,
                                           read_buf_ptr,
                                           SMTP_GETDELIM_READ_SZ);
-    if(bytes_read < 0){
+    if(bytes_read < 0 ||
+       smtp_si_add_size_t(gdfd->_buf_len, bytes_read, &gdfd->_buf_len)){
       smtp_str_getdelimfd_free(gdfd);
       return STRING_GETDELIMFD_ERROR;
     }
-    gdfd->_buf_len += bytes_read;
   }
 }
 
@@ -471,6 +603,34 @@ smtp_stpcpy(char *s1,
 }
 
 /**
+ * Reallocate memory with unsigned wrapping checks.
+ *
+ * @param[in] ptr   Existing allocation buffer, or NULL when allocating a
+ *                  new buffer.
+ * @param[in] nmemb Number of elements to allocate.
+ * @param[in] size  Size of each element in @p nmemb.
+ * @retval void* Pointer to a reallocated buffer containing
+ *               @p nmemb * @p size bytes.
+ * @retval NULL  Failed to reallocate memory.
+ */
+SMTP_LINKAGE void *
+smtp_reallocarray(void *ptr,
+                  size_t nmemb,
+                  size_t size){
+  void *alloc;
+  size_t size_mul;
+
+  if(smtp_si_mul_size_t(nmemb, size, &size_mul)){
+    alloc = NULL;
+    errno = ENOMEM;
+  }
+  else{
+    alloc = realloc(ptr, size_mul);
+  }
+  return alloc;
+}
+
+/**
  * Copy a string into a new dynamically allocated buffer.
  *
  * Returns a dynamically allocated string, with the same contents as the
@@ -485,9 +645,14 @@ SMTP_LINKAGE char *
 smtp_strdup(const char *s){
   char *dup;
   size_t dup_len;
+  size_t slen;
 
-  dup_len = strlen(s) + 1;
-  if((dup = malloc(dup_len)) != NULL){
+  slen = strlen(s);
+  if(smtp_si_add_size_t(slen, 1, &dup_len)){
+    dup = NULL;
+    errno = ENOMEM;
+  }
+  else if((dup = malloc(dup_len)) != NULL){
     memcpy(dup, s, dup_len);
   }
   return dup;
@@ -511,22 +676,31 @@ smtp_str_replace(const char *const search,
                  const char *const s){
   size_t search_len;
   size_t replace_len;
+  size_t replace_len_inc;
   size_t slen;
+  size_t slen_inc;
   size_t s_idx;
-  int found_matches;
-  char *snew;
   size_t snew_len;
+  size_t snew_len_inc;
   size_t snew_sz;
+  size_t snew_sz_dup;
+  size_t snew_sz_plus_slen;
+  size_t snew_replace_len_inc;
+  char *snew;
   char *stmp;
 
   search_len    = strlen(search);
   replace_len   = strlen(replace);
   slen          = strlen(s);
   s_idx         = 0;
-  found_matches = 0;
   snew          = NULL;
   snew_len      = 0;
   snew_sz       = 0;
+
+  if(smtp_si_add_size_t(replace_len, 1, &replace_len_inc) ||
+     smtp_si_add_size_t(slen, 1, &slen_inc)){
+    return NULL;
+  }
 
   if(s[0] == '\0'){
     return smtp_strdup("");
@@ -536,10 +710,23 @@ smtp_str_replace(const char *const search,
   }
 
   while(s[s_idx]){
+    if(smtp_si_add_size_t(snew_len, 1, &snew_len_inc) ||
+       smtp_si_add_size_t(snew_sz, snew_sz, &snew_sz_dup) ||
+       smtp_si_add_size_t(snew_sz, slen, &snew_sz_plus_slen)){
+      free(snew);
+      return NULL;
+    }
+
     if(strncmp(&s[s_idx], search, search_len) == 0){
-      if(snew_len + replace_len + 1 >= snew_sz){
-        snew_sz += snew_sz + slen + replace_len + 1;
-        if((stmp = realloc(snew, snew_sz)) == NULL){
+      if(smtp_si_add_size_t(snew_len, replace_len_inc, &snew_replace_len_inc)){
+        free(snew);
+        return NULL;
+      }
+      if(snew_replace_len_inc >= snew_sz){
+        /* snew_sz += snew_sz + slen + replace_len + 1 */
+        if(smtp_si_add_size_t(snew_sz_dup, slen_inc, &snew_sz) ||
+           smtp_si_add_size_t(snew_sz, replace_len, &snew_sz) ||
+           (stmp = realloc(snew, snew_sz)) == NULL){
           free(snew);
           return NULL;
         }
@@ -548,12 +735,13 @@ smtp_str_replace(const char *const search,
       memcpy(&snew[snew_len], replace, replace_len);
       snew_len += replace_len;
       s_idx += search_len;
-      found_matches += 1;
     }
     else{
-      if(snew_len + 1 >= snew_sz){
-        snew_sz += snew_sz + slen + snew_len + 1;
-        if((stmp = realloc(snew, snew_sz)) == NULL){
+      if(snew_len_inc >= snew_sz){
+        /* snew_sz += snew_sz + slen + snew_len + 1 */
+        if(smtp_si_add_size_t(snew_sz_dup, slen, &snew_sz) ||
+           smtp_si_add_size_t(snew_sz, snew_len_inc, &snew_sz) ||
+           (stmp = realloc(snew, snew_sz)) == NULL){
           free(snew);
           return NULL;
         }
@@ -561,7 +749,7 @@ smtp_str_replace(const char *const search,
       }
       snew[snew_len] = s[s_idx];
       s_idx += 1;
-      snew_len += 1;
+      snew_len = snew_len_inc;
     }
   }
   snew[snew_len] = '\0';
@@ -622,14 +810,15 @@ smtp_base64_encode_block(const char *const buf,
  * Encode binary data into a base64 string.
  *
  * @param[in] buf    Binary data to encode in base64.
- * @param[in] buflen Number of bytes in the @p buf parameter.
+ * @param[in] buflen Number of bytes in the @p buf parameter, or -1 if
+ *                   null-terminated.
  * @retval char* Dynamically allocated base64 encoded string. The caller
  *               must free this string when finished.
  * @retval NULL  Memory allocation failure.
  */
 SMTP_LINKAGE char *
 smtp_base64_encode(const char *const buf,
-                   long buflen){
+                   size_t buflen){
   char *b64;
   size_t b64_sz;
   size_t buf_i;
@@ -637,7 +826,7 @@ smtp_base64_encode(const char *const buf,
   size_t remaining_block_sz;
   size_t buf_block_sz;
 
-  if(buflen < 0){
+  if(buflen == SIZE_MAX){
     buflen = strlen(buf);
   }
 
@@ -647,6 +836,9 @@ smtp_base64_encode(const char *const buf,
    * +2 for '=' padding
    * +1 null terminator
    */
+  if(smtp_si_mul_size_t(buflen, 4, NULL)){
+    return NULL;
+  }
   b64_sz = (4 * buflen / 3) + 1 + 2 + 1;
   if((b64 = calloc(1, b64_sz)) == NULL){
     return NULL;
@@ -668,13 +860,15 @@ smtp_base64_encode(const char *const buf,
     }
 
     smtp_base64_encode_block(&buf[buf_i], buf_block_sz, &b64[b64_i]);
-    if(buf_block_sz < 3){
-      break;
-    }
 
+    /*
+     * Do not need to check for wrapping because these values restricted to
+     * range of b64_sz, which has already been checked for wrapping above.
+     */
     buf_i += 3;
     b64_i += 4;
-    remaining_block_sz -= 3;
+
+    remaining_block_sz -= buf_block_sz;
   }
 
   return b64;
@@ -785,6 +979,7 @@ SMTP_LINKAGE long
 smtp_base64_decode(const char *const buf,
                    unsigned char **decode){
   size_t buf_len;
+  size_t buf_len_inc;
   size_t buf_i;
   unsigned char *b64_decode;
   long decode_len;
@@ -797,7 +992,8 @@ smtp_base64_decode(const char *const buf,
     return -1;
   }
 
-  if((b64_decode = calloc(1, buf_len + 1)) == NULL){
+  if(smtp_si_add_size_t(buf_len, 1, &buf_len_inc) ||
+     (b64_decode = calloc(1, buf_len_inc)) == NULL){
     return -1;
   }
 
@@ -835,7 +1031,11 @@ smtp_bin2hex(const unsigned char *const s,
   unsigned hex;
   int rc;
 
-  alloc_sz = slen * 2 + 1;
+  /* alloc_sz = slen * 2 + 1 */
+  if(smtp_si_mul_size_t(slen, 2, &alloc_sz) ||
+     smtp_si_add_size_t(alloc_sz, 1, &alloc_sz)){
+    return NULL;
+  }
   if((snew = malloc(alloc_sz)) == NULL){
     return NULL;
   }
@@ -1061,9 +1261,11 @@ smtp_fold_whitespace(const char *const s,
   while(1){
     ws_offset = smtp_fold_whitespace_get_offset(&s[s_i], maxlen - 2);
 
-    bufsz += ws_offset + end_slen + 1;
-    buf_new = realloc(buf, bufsz);
-    if(buf_new == NULL){
+    /* bufsz += ws_offset + end_slen + 1 */
+    if(smtp_si_add_size_t(bufsz, ws_offset, &bufsz) ||
+       smtp_si_add_size_t(bufsz, end_slen, &bufsz) ||
+       smtp_si_add_size_t(bufsz, 1, &bufsz) ||
+       (buf_new = realloc(buf, bufsz)) == NULL){
       free(buf);
       return NULL;
     }
@@ -1097,11 +1299,13 @@ smtp_fold_whitespace(const char *const s,
  */
 SMTP_LINKAGE char *
 smtp_chunk_split(const char *const s,
-                 int chunklen,
+                 size_t chunklen,
                  const char *const end){
   char *snew;
   size_t bodylen;
+  size_t bodylen_inc;
   size_t endlen;
+  size_t endlen_inc;
   size_t snewlen;
   size_t chunk_i;
   size_t snew_i;
@@ -1120,9 +1324,15 @@ smtp_chunk_split(const char *const s,
     return smtp_strdup(end);
   }
 
-  snewlen = bodylen + (endlen + 1) * (bodylen / chunklen + 1) + 1;
-
-  if((snew = calloc(1, snewlen)) == NULL){
+  /*
+   *                                                               \0
+   * snewlen = bodylen + (endlen + 1) * (bodylen / chunklen + 1) + 1
+   */
+  if(smtp_si_add_size_t(endlen, 1, &endlen_inc) ||
+     smtp_si_add_size_t(bodylen, 1, &bodylen_inc) ||
+     smtp_si_mul_size_t(endlen_inc, bodylen / chunklen + 1, &snewlen) ||
+     smtp_si_add_size_t(snewlen, bodylen_inc, &snewlen) ||
+     (snew = calloc(1, snewlen)) == NULL){
     return NULL;
   }
 
@@ -1167,6 +1377,7 @@ smtp_ffile_get_contents(FILE *stream,
                         size_t *bytes_read){
   char *read_buf;
   size_t bufsz;
+  size_t bufsz_inc;
   char *new_buf;
   size_t bytes_read_loop;
   const size_t BUFSZ_INCREMENT = 512;
@@ -1179,12 +1390,13 @@ smtp_ffile_get_contents(FILE *stream,
   }
 
   do{
-    if((new_buf = realloc(read_buf, bufsz + BUFSZ_INCREMENT)) == NULL){
+    if(smtp_si_add_size_t(bufsz, BUFSZ_INCREMENT, &bufsz_inc) ||
+       (new_buf = realloc(read_buf, bufsz_inc)) == NULL){
       free(read_buf);
       return NULL;
     }
     read_buf = new_buf;
-    bufsz += BUFSZ_INCREMENT;
+    bufsz = bufsz_inc;
 
     bytes_read_loop = fread(&read_buf[bufsz - BUFSZ_INCREMENT],
                             sizeof(char),
@@ -1416,8 +1628,12 @@ smtp_puts_terminate(struct smtp *const smtp,
   int rc;
   char *line;
   char *concat;
+  size_t slen;
+  size_t allocsz;
 
-  if((line = malloc(strlen(s) + 3)) == NULL){
+  slen = strlen(s);
+  if(smtp_si_add_size_t(slen, 3, &allocsz) ||
+     (line = malloc(allocsz)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
   concat = smtp_stpcpy(line, s);
@@ -1639,16 +1855,19 @@ smtp_auth_plain(struct smtp *const smtp,
   size_t user_len;
   size_t pass_len;
   char *login_str;
-  int login_len;
+  size_t login_len;
   char *login_b64;
+  size_t login_b64_len;
   char *login_send;
   char *concat;
 
   /* (1) */
   user_len = strlen(user);
   pass_len = strlen(pass);
-  login_len = 1 + user_len + 1 + pass_len;
-  if((login_str = malloc(login_len)) == NULL){
+  /* login_len = 1 + user_len + 1 + pass_len */
+  if(smtp_si_add_size_t(user_len, pass_len, &login_len) ||
+     smtp_si_add_size_t(login_len, 2, &login_len) ||
+     (login_str = malloc(login_len)) == NULL){
     return -1;
   }
   login_str[0] = '\0';
@@ -1664,7 +1883,9 @@ smtp_auth_plain(struct smtp *const smtp,
   }
 
   /* (3) */
-  if((login_send = malloc(strlen(login_b64) + 14)) == NULL){
+  login_b64_len = strlen(login_b64);
+  if(smtp_si_add_size_t(login_b64_len, 14, &login_b64_len) ||
+     (login_send = malloc(login_b64_len)) == NULL){
     free(login_b64);
     return -1;
   }
@@ -1706,6 +1927,7 @@ smtp_auth_login(struct smtp *const smtp,
                 const char *const pass){
   char *b64_user;
   char *b64_pass;
+  size_t b64_user_len;
   char *login_str;
   char *concat;
 
@@ -1715,7 +1937,9 @@ smtp_auth_login(struct smtp *const smtp,
   }
 
   /* (2) */
-  if((login_str = malloc(strlen(b64_user) + 14)) == NULL){
+  b64_user_len = strlen(b64_user);
+  if(smtp_si_add_size_t(b64_user_len, 14, &b64_user_len) ||
+     (login_str = malloc(b64_user_len)) == NULL){
     free(b64_user);
     return -1;
   }
@@ -1781,6 +2005,8 @@ smtp_auth_cram_md5(struct smtp *const smtp,
   unsigned int hmac_len;
   unsigned char *hmac_ret;
   char *challenge_hex;
+  size_t user_len;
+  size_t challenge_hex_len;
   char *auth_concat;
   char *concat;
   size_t auth_concat_len;
@@ -1822,8 +2048,12 @@ smtp_auth_cram_md5(struct smtp *const smtp,
   }
 
   /* (5) */
-  auth_concat_len = strlen(user) + 1 + strlen(challenge_hex) + 1;
-  if((auth_concat = malloc(auth_concat_len)) == NULL){
+  user_len = strlen(user);
+  challenge_hex_len = strlen(challenge_hex);
+  /* auth_concat_len = user_len + 1 + challenge_hex_len + 1 */
+  if(smtp_si_add_size_t(user_len, challenge_hex_len, &auth_concat_len) ||
+     smtp_si_add_size_t(auth_concat_len, 2, &auth_concat_len) ||
+     (auth_concat = malloc(auth_concat_len)) == NULL){
     free(challenge_hex);
     return -1;
   }
@@ -2089,8 +2319,10 @@ static int
 smtp_print_mime_header_and_body(struct smtp *const smtp,
                                 const char *const boundary,
                                 const char *const body){
+  /* Buffer size for the static MIME text used below. */
+  const size_t MIME_TEXT_BUFSZ = 1000;
   char *data_double_dot;
-  size_t bufsz;
+  size_t data_double_dot_len;
   char *data_header_and_body;
   char *concat;
 
@@ -2103,8 +2335,11 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
-  bufsz = strlen(data_double_dot) + 1000;
-  if((data_header_and_body = malloc(bufsz)) == NULL){
+  data_double_dot_len = strlen(data_double_dot);
+  if(smtp_si_add_size_t(data_double_dot_len,
+                        MIME_TEXT_BUFSZ,
+                        &data_double_dot_len) ||
+     (data_header_and_body = malloc(data_double_dot_len)) == NULL){
     free(data_double_dot);
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
@@ -2149,15 +2384,24 @@ static int
 smtp_print_mime_attachment(struct smtp *const smtp,
                            const char *const boundary,
                            const struct smtp_attachment *const attachment){
+  /* Buffer size for the static MIME text used below. */
+  const size_t MIME_TEXT_BUFSZ = 1000;
+  size_t name_len;
+  size_t b64_data_len;
   size_t bufsz;
   char *mime_attach_text;
   char *concat;
 
-  bufsz = SMTP_MIME_BOUNDARY_LEN       +
-          strlen(attachment->name)     +
-          strlen(attachment->b64_data) +
-          1000;
-  if((mime_attach_text = malloc(bufsz)) == NULL){
+  name_len = strlen(attachment->name);
+  b64_data_len = strlen(attachment->b64_data);
+  /*
+   * bufsz = SMTP_MIME_BOUNDARY_LEN + name_len + b64_data_len + MIME_TEXT_BUFSZ
+   */
+  if(smtp_si_add_size_t(name_len, b64_data_len, &bufsz) ||
+     smtp_si_add_size_t(bufsz,
+                        SMTP_MIME_BOUNDARY_LEN + MIME_TEXT_BUFSZ,
+                        &bufsz) ||
+     (mime_attach_text = malloc(bufsz)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
@@ -2253,6 +2497,8 @@ smtp_print_mime_email(struct smtp *const smtp,
 static int
 smtp_print_header(struct smtp *const smtp,
                   const struct smtp_header *const header){
+  size_t key_len;
+  size_t value_len;
   size_t concat_len;
   char *header_concat;
   char *concat;
@@ -2262,8 +2508,13 @@ smtp_print_header(struct smtp *const smtp,
     return smtp->status_code;
   }
 
-  concat_len = strlen(header->key) + 2 + strlen(header->value) + 1;
-  if((header_concat = malloc(concat_len)) == NULL){
+  key_len = strlen(header->key);
+  value_len = strlen(header->value);
+
+  /* concat_len = key_len + 2 + value_len + 1 */
+  if(smtp_si_add_size_t(key_len, value_len, &concat_len) ||
+     smtp_si_add_size_t(concat_len, 3, &concat_len) ||
+     (header_concat = malloc(concat_len)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
   concat = smtp_stpcpy(header_concat, header->key);
@@ -2319,11 +2570,16 @@ smtp_append_address_to_header(struct smtp *const smtp,
       if(address->name){
         name_slen = strlen(address->name);
       }
-
       email_slen = strlen(address->email);
-      /*                ', "'      NAME     '" <'      EMAIL     >  \0 */
-      header_value_sz +=  3  +  name_slen  +  3  +  email_slen + 1 + 1;
-      if((header_value_new = realloc(header_value,
+
+      /*
+       *                   ', "'      NAME     '" <'      EMAIL     >  \0
+       * header_value_sz +=  3  +  name_slen  +  3  +  email_slen + 1 + 1
+       */
+      if(smtp_si_add_size_t(header_value_sz, name_slen, &header_value_sz) ||
+         smtp_si_add_size_t(header_value_sz, email_slen, &header_value_sz) ||
+         smtp_si_add_size_t(header_value_sz, 3 + 3 + 1 + 1, &header_value_sz)||
+         (header_value_new = realloc(header_value,
                                      header_value_sz)) == NULL){
         free(header_value);
         return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
@@ -2371,13 +2627,18 @@ smtp_mail_envelope_header(struct smtp *const smtp,
                           const char *const header,
                           const struct smtp_address *const address){
   const char *const SMTPUTF8 = " SMTPUTF8";
+  const size_t SMTPUTF8_LEN = strlen(SMTPUTF8);
+  size_t email_len;
   size_t bufsz;
   char *envelope_address;
   char *concat;
   const char *smtputf8_opt;
 
-  bufsz = 14 + strlen(address->email) + strlen(SMTPUTF8) + 1;
-  if((envelope_address = malloc(bufsz)) == NULL){
+  email_len = strlen(address->email);
+
+  /* bufsz = 14 + email_len + SMTPUTF8_LEN + 1 */
+  if(smtp_si_add_size_t(email_len, SMTPUTF8_LEN + 14 + 1, &bufsz) ||
+     (envelope_address = malloc(bufsz)) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
@@ -2681,8 +2942,12 @@ smtp_open(const char *const server,
   }
   *smtp = snew;
 
-  snew->flags = flags;
-  snew->cafile = cafile;
+  snew->flags                = flags;
+  snew->sock                 = -1;
+  snew->gdfd.delim           = '\n';
+  snew->gdfd.getdelimfd_read = smtp_str_getdelimfd_read;
+  snew->gdfd.user_data       = snew;
+  snew->cafile               = cafile;
 
 #ifndef SMTP_IS_WINDOWS
   signal(SIGPIPE, SIG_IGN);
@@ -2691,11 +2956,6 @@ smtp_open(const char *const server,
   if(smtp_connect(snew, server, port) < 0){
     return smtp_status_code_set(*smtp, SMTP_STATUS_CONNECT);
   }
-
-  /* All other gdfd fields already set to NULL from the snew calloc. */
-  snew->gdfd.delim           = '\n';
-  snew->gdfd.getdelimfd_read = smtp_str_getdelimfd_read;
-  snew->gdfd.user_data       = snew;
 
   if(smtp_initiate_handshake(snew,
                              server,
@@ -2889,7 +3149,7 @@ smtp_close(struct smtp *smtp){
     return status_code;
   }
 
-  if(smtp->sock){
+  if(smtp->sock != -1){
     /*
      * Do not error out if this fails because we still need to free the
      * SMTP client resources.
@@ -3026,7 +3286,7 @@ smtp_header_add(struct smtp *const smtp,
                 const char *const value){
   struct smtp_header *new_header_list;
   struct smtp_header *new_header;
-  size_t new_realloc_sz;
+  size_t num_headers_inc;
 
   if(smtp->status_code != SMTP_STATUS_OK){
     return smtp->status_code;
@@ -3040,8 +3300,11 @@ smtp_header_add(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
   }
 
-  new_realloc_sz = (smtp->num_headers + 1) * sizeof(*smtp->header_list);
-  if((new_header_list = realloc(smtp->header_list, new_realloc_sz)) == NULL){
+  if(smtp_si_add_size_t(smtp->num_headers, 1, &num_headers_inc) ||
+     (new_header_list = smtp_reallocarray(
+                          smtp->header_list,
+                          num_headers_inc,
+                          sizeof(*smtp->header_list))) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
   smtp->header_list = new_header_list;
@@ -3056,7 +3319,7 @@ smtp_header_add(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
-  smtp->num_headers += 1;
+  smtp->num_headers = num_headers_inc;
 
   qsort(smtp->header_list,
         smtp->num_headers,
@@ -3106,9 +3369,9 @@ smtp_address_add(struct smtp *const smtp,
                  enum smtp_address_type type,
                  const char *const email,
                  const char *const name){
-  size_t new_size;
   struct smtp_address *new_address_list;
   struct smtp_address *new_address;
+  size_t num_address_inc;
 
   if(smtp->status_code != SMTP_STATUS_OK){
     return smtp->status_code;
@@ -3122,8 +3385,13 @@ smtp_address_add(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
   }
 
-  new_size = (smtp->num_address + 1) * sizeof(*new_address_list);
-  new_address_list = realloc(smtp->address_list, new_size);
+  if(smtp_si_add_size_t(smtp->num_address, 1, &num_address_inc)){
+    return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
+  }
+
+  new_address_list = smtp_reallocarray(smtp->address_list,
+                                       num_address_inc,
+                                       sizeof(*new_address_list));
   if(new_address_list == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
@@ -3140,7 +3408,7 @@ smtp_address_add(struct smtp *const smtp,
     free(new_address->name);
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
-  smtp->num_address += 1;
+  smtp->num_address = num_address_inc;
 
   return smtp->status_code;
 }
@@ -3251,7 +3519,7 @@ smtp_attachment_add_mem(struct smtp *const smtp,
                         const char *const name,
                         const void *const data,
                         long datasz){
-  size_t new_size;
+  size_t num_attachment_inc;
   struct smtp_attachment *new_attachment_list;
   struct smtp_attachment *new_attachment;
   char *b64_encode;
@@ -3268,9 +3536,11 @@ smtp_attachment_add_mem(struct smtp *const smtp,
     datasz = strlen(data);
   }
 
-  new_size = (smtp->num_attachment + 1) * sizeof(*new_attachment_list);
-  if((new_attachment_list = realloc(smtp->attachment_list,
-                                    new_size)) == NULL){
+  if(smtp_si_add_size_t(smtp->num_attachment, 1, &num_attachment_inc) ||
+     (new_attachment_list = smtp_reallocarray(
+                              smtp->attachment_list,
+                              num_attachment_inc,
+                              sizeof(*new_attachment_list))) == NULL){
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
   smtp->attachment_list = new_attachment_list;
@@ -3293,7 +3563,7 @@ smtp_attachment_add_mem(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
-  smtp->num_attachment += 1;
+  smtp->num_attachment = num_attachment_inc;
   return smtp->status_code;
 }
 

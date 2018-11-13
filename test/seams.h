@@ -40,11 +40,12 @@
 #undef SSL_CTX_new
 #undef SSL_do_handshake
 #undef SSL_get_peer_certificate
-#undef smtp_test_seam_x509_check_host
+#undef X509_check_host
 #undef SSL_new
 #undef SSL_read
 #undef SSL_write
 #undef sprintf
+#undef strlen
 #undef time
 
 /**
@@ -262,6 +263,14 @@
  * See @ref smtp_test_seam_sprintf.
  */
 #define sprintf                  smtp_test_seam_sprintf
+
+/**
+ * Redefine this function from smtp.c and inject a test seam which
+ * can control the return value of this function.
+ *
+ * See @ref smtp_test_seam_strlen.
+ */
+#define strlen                   smtp_test_seam_strlen
 
 /**
  * Redefine this function from smtp.c and inject a test seam which

@@ -468,6 +468,86 @@ smtp_test_sleep(unsigned int seconds){
 }
 
 /**
+ * Test harness for @ref smtp_si_add_size_t, @ref smtp_si_sub_size_t,
+ * and @ref smtp_si_mul_size_t.
+ *
+ * @param[in]  si_fp         One of the si wrapping functions for size_t types.
+ * @param[in]  a             Add this value with @p b.
+ * @param[in]  b             Add this value with @p a.
+ * @param[out] result        Memory location to store the result.
+ * @param[in]  expect_result Expected result of adding @p a and @p b.
+ * @param[in]  expect_wrap   Expectation on whether the addition will wrap.
+ */
+static void
+smtp_unit_test_si_size_t(int (*si_fp)(const size_t a,
+                                      const size_t b,
+                                      size_t *const result),
+                         size_t a,
+                         size_t b,
+                         size_t *result,
+                         size_t expect_result,
+                         int expect_wrap){
+  int wraps;
+
+  wraps = si_fp(a, b, result);
+  assert(wraps == expect_wrap);
+  if(result){
+    assert(*result == expect_result);
+  }
+}
+
+/**
+ * Run all test cases for integer wrapping.
+ */
+static void
+smtp_unit_test_all_si(void){
+  size_t result;
+
+  /* add */
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, 0, 0, &result, 0, 0);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, 0, 1, &result, 1, 0);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, 1, 0, &result, 1, 0);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, 1, 1, &result, 2, 0);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, 1, 1, NULL, -1, 0);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, SIZE_MAX, 1, NULL, -1, 1);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, SIZE_MAX, 0, &result, SIZE_MAX, 0);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, SIZE_MAX, 1, &result, 0, 1);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, SIZE_MAX - 1, 2, &result, 0, 1);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t, SIZE_MAX, 2, &result, 1, 1);
+  smtp_unit_test_si_size_t(smtp_si_add_size_t,
+                           SIZE_MAX / 2,
+                           SIZE_MAX / 2,
+                           &result,
+                           SIZE_MAX - 1,
+                           0);
+
+  /* subtraction */
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 0, 0, &result, 0, 0);
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 0, 1, &result, SIZE_MAX, 1);
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 1, 0, &result, 1, 0);
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 1, 1, &result, 0, 0);
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 2, 3, &result, SIZE_MAX, 1);
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 2, 1, NULL, -1, 0);
+  smtp_unit_test_si_size_t(smtp_si_sub_size_t, 1, 2, NULL, -1, 1);
+
+  /* multiply */
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, 0, 0, &result, 0, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, 0, 1, &result, 0, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, 1, 0, &result, 0, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, 1, 1, &result, 1, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, 1, 1, NULL, -1, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, SIZE_MAX, 2, NULL, -1, 1);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, 100, 12, &result, 1200, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t, SIZE_MAX, 1, &result, SIZE_MAX, 0);
+  smtp_unit_test_si_size_t(smtp_si_mul_size_t,
+                           SIZE_MAX,
+                           2,
+                           &result,
+                           SIZE_MAX * 2,
+                           1);
+}
+
+/**
  * Test harness for @ref smtp_base64_decode.
  *
  * @param[in] buf            Null-terminated base64 string.
@@ -514,6 +594,11 @@ smtp_unit_test_all_base64_decode(void){
   smtp_unit_test_base64_decode("^^^^"   , NULL, -1);
   smtp_unit_test_base64_decode("^^^\xFF", NULL, -1);
 
+  /* Wrap when calculating the buffer length. */
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  smtp_unit_test_base64_decode("YQ=="    , NULL, -1);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+
   g_smtp_test_err_calloc_ctr = 0;
   smtp_unit_test_base64_decode("", NULL, -1);
   g_smtp_test_err_calloc_ctr = -1;
@@ -528,7 +613,7 @@ smtp_unit_test_all_base64_decode(void){
  */
 static void
 smtp_unit_test_base64_encode(const char *const buf,
-                             long buflen,
+                             size_t buflen,
                              const char *const expect){
   char *result;
 
@@ -561,6 +646,13 @@ smtp_unit_test_all_base64_encode(void){
   /* binary data */
   smtp_unit_test_base64_encode("a\0b\1c", 5, "YQBiAWM=");
   smtp_unit_test_base64_encode("a\n\r\4bc", 6, "YQoNBGJj");
+
+  /* Value would wrap */
+  g_smtp_test_strlen_custom_ret = 1;
+  g_smtp_test_strlen_ret_value = SIZE_MAX - 1;
+  smtp_unit_test_base64_encode("a", -1, NULL);
+  g_smtp_test_strlen_custom_ret = 0;
+  g_smtp_test_strlen_ret_value = 0;
 
   /* calloc */
   g_smtp_test_err_calloc_ctr = 0;
@@ -609,6 +701,14 @@ smtp_unit_test_all_bin2hex(void){
     "6162636465666768696a6b6c6d6e6f707172737475767778797a");
   smtp_unit_test_bin2hex("\xFF", 1, "ff");
   smtp_unit_test_bin2hex("\x00", 1, "00");
+
+  /* Multiplication wrap. */
+  smtp_unit_test_bin2hex("", SIZE_MAX - 2, NULL);
+
+  /* Addition wrap. */
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  smtp_unit_test_bin2hex("", SIZE_MAX / 2, NULL);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
 
   g_smtp_test_err_malloc_ctr = 0;
   smtp_unit_test_bin2hex("", 0, NULL);
@@ -674,6 +774,51 @@ smtp_unit_test_all_stpcpy(void){
 }
 
 /**
+ * Test harness for @ref smtp_reallocarray.
+ *
+ * @param[in] ptr          Existing allocation buffer, or NULL when allocating
+ *                         a new buffer.
+ * @param[in] nmemb        Number of elements to allocate.
+ * @param[in] size         Size of each element in @p nmemb.
+ * @param[in] expect_alloc Set to 0 if expecting NULL return, or set to any
+ *                         other value when expecting successful allocation.
+ */
+static void
+smtp_unit_test_reallocarray(void *ptr,
+                            size_t nmemb,
+                            size_t size,
+                            int expect_alloc){
+  void *result;
+
+  result = smtp_reallocarray(ptr, nmemb, size);
+  if(expect_alloc){
+    assert(result);
+    free(result);
+  }
+  else{
+    assert(result == NULL);
+  }
+}
+
+/**
+ * Run all test cases for @ref smtp_reallocarray.
+ */
+static void
+smtp_unit_test_all_reallocarray(void){
+  smtp_unit_test_reallocarray(NULL, 1, 1, 1);
+  smtp_unit_test_reallocarray(NULL, 0, 1, 1);
+  smtp_unit_test_reallocarray(NULL, 1, 0, 1);
+
+  /* unsigned wrapping */
+  smtp_unit_test_reallocarray(NULL, SIZE_MAX, 2, 0);
+
+  /* realloc */
+  g_smtp_test_err_realloc_ctr = 0;
+  smtp_unit_test_reallocarray(NULL, 1, 1, 0);
+  g_smtp_test_err_realloc_ctr = -1;
+}
+
+/**
  * Test harness for @ref smtp_strdup.
  *
  * @param[in] s      String to duplicate.
@@ -702,6 +847,13 @@ smtp_unit_test_all_strdup(void){
   smtp_unit_test_strdup("", "");
   smtp_unit_test_strdup("a", "a");
   smtp_unit_test_strdup("ab", "ab");
+
+  /* Wrap when calculating the new strlen. */
+  g_smtp_test_strlen_custom_ret = 1;
+  g_smtp_test_strlen_ret_value = SIZE_MAX;
+  smtp_unit_test_strdup("a", NULL);
+  g_smtp_test_strlen_custom_ret = 0;
+  g_smtp_test_strlen_ret_value = 0;
 
   /* malloc */
   g_smtp_test_err_malloc_ctr = 0;
@@ -739,6 +891,8 @@ smtp_unit_test_str_replace(const char *const search,
  */
 static void
 smtp_unit_test_all_str_replace(void){
+  size_t i;
+
   smtp_unit_test_str_replace("", "", "", "");
   smtp_unit_test_str_replace("a", "b", "", "");
   smtp_unit_test_str_replace("", "", "a b c", "a b c");
@@ -753,6 +907,22 @@ smtp_unit_test_all_str_replace(void){
   smtp_unit_test_str_replace("a", "b", "a b a", "b b b");
   smtp_unit_test_str_replace("a", "b", "a b a", "b b b");
   smtp_unit_test_str_replace("a", "b", "a b a b a", "b b b b b");
+
+  g_smtp_test_strlen_custom_ret = 1;
+  g_smtp_test_strlen_ret_value = SIZE_MAX;
+  smtp_unit_test_str_replace("a", "b", "a b c", NULL);
+  g_smtp_test_strlen_custom_ret = 0;
+  g_smtp_test_strlen_ret_value = 0;
+
+  for(i = 0; i < 10; i++){
+    g_smtp_test_err_si_add_size_t_ctr = i;
+    smtp_unit_test_str_replace("a", "b", "a b c", NULL);
+    g_smtp_test_err_si_add_size_t_ctr = -1;
+
+    g_smtp_test_err_si_add_size_t_ctr = i;
+    smtp_unit_test_str_replace("b", "a", "a b c", NULL);
+    g_smtp_test_err_si_add_size_t_ctr = -1;
+  }
 
   g_smtp_test_err_realloc_ctr = 0;
   smtp_unit_test_str_replace("a", "b", "a b c", NULL);
@@ -1012,6 +1182,8 @@ smtp_unit_test_fold_whitespace(const char *const s,
  */
 static void
 smtp_unit_test_all_fold_whitespace(void){
+  size_t i;
+
   smtp_unit_test_fold_whitespace("Subject: Email Test",
                                  5,
                                  "Subject:\r\n"
@@ -1057,6 +1229,12 @@ smtp_unit_test_all_fold_whitespace(void){
                                  10,
                                  STR_ALPHABET_LOWERCASE);
 
+  for(i = 0; i < 3; i++){
+    g_smtp_test_err_si_add_size_t_ctr = i;
+    smtp_unit_test_fold_whitespace("a b c", 2, NULL);
+    g_smtp_test_err_si_add_size_t_ctr = -1;
+  }
+
   /* Memory allocation failure. */
   g_smtp_test_err_realloc_ctr = 0;
   smtp_unit_test_fold_whitespace("a b c", 2, NULL);
@@ -1078,7 +1256,7 @@ smtp_unit_test_all_fold_whitespace(void){
  */
 static void
 smtp_unit_test_chunk_split(const char *const s,
-                           int chunklen,
+                           size_t chunklen,
                            const char *const end,
                            const char *const expect){
   char *result;
@@ -1098,6 +1276,8 @@ smtp_unit_test_chunk_split(const char *const s,
  */
 static void
 smtp_unit_test_all_chunk_split(void){
+  size_t i;
+
   smtp_unit_test_chunk_split("", 0, "", NULL);
   smtp_unit_test_chunk_split("a", 0, "a", NULL);
   smtp_unit_test_chunk_split("", 1, "", "");
@@ -1137,6 +1317,16 @@ smtp_unit_test_all_chunk_split(void){
   smtp_unit_test_chunk_split("щbc", 4, "-", "щbc-");
   smtp_unit_test_chunk_split("aщ€𠜎e", 2, "-", "aщ-€-𠜎-e-");
   smtp_unit_test_chunk_split("aщ€𠜎e", 4, "-", "aщ€-𠜎-e-");
+
+  /* Wrapping. */
+  g_smtp_test_err_si_mul_size_t_ctr = 0;
+  smtp_unit_test_chunk_split("abc", 1, "-", NULL);
+  g_smtp_test_err_si_mul_size_t_ctr = -1;
+  for(i = 0; i < 3; i++){
+    g_smtp_test_err_si_add_size_t_ctr = i;
+    smtp_unit_test_chunk_split("abc", 1, "-", NULL);
+    g_smtp_test_err_si_add_size_t_ctr = -1;
+  }
 
   /* Memory allocation failure. */
   g_smtp_test_err_calloc_ctr = 0;
@@ -1201,6 +1391,11 @@ smtp_unit_test_all_file_get_contents(void){
   g_smtp_test_err_fclose_ctr = 0;
   assert(smtp_file_get_contents(TMP_FILE_PATH, NULL) == NULL);
   g_smtp_test_err_fclose_ctr = -1;
+
+  /* Wrap when increasing the buffer size. */
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  assert(smtp_file_get_contents(TMP_FILE_PATH, NULL) == NULL);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
 
   /* smtp_file_get_contents - realloc */
   g_smtp_test_err_realloc_ctr = 0;
@@ -1560,11 +1755,32 @@ smtp_unit_test_str_getdelimfd(const char *const input_string,
 }
 
 /**
+ * Test harness for @ref smtp_str_getdelimfd_set_line_and_buf.
+ *
+ * @param[in] gdfd          @ref str_getdelimfd.
+ * @param[in] copy_len      Number of bytes to copy to the internal line buffer.
+ * @param[in] expect_result Expected result code (0 or -1) from
+ *                          @ref smtp_str_getdelimfd_set_line_and_buf.
+ */
+static void
+smtp_unit_test_getdelimfd_set_line_and_buf(struct str_getdelimfd *const gdfd,
+                                           size_t copy_len,
+                                           int expect_result){
+  int result;
+
+  result = smtp_str_getdelimfd_set_line_and_buf(gdfd, copy_len);
+  assert(result == expect_result);
+}
+
+/**
  * Run all tests for @ref smtp_str_getdelimfd.
  */
 static void
 smtp_unit_test_all_str_getdelimfd(void){
   const char *s;
+  struct str_getdelimfd gdfd;
+  char test_str[] = "test";
+  size_t i;
 
   s = "";
   smtp_unit_test_str_getdelimfd(s,
@@ -1700,6 +1916,38 @@ smtp_unit_test_all_str_getdelimfd(void){
 
   /* getdelimfd_read unset */
   smtp_unit_test_str_getdelimfd("", 0, '\0', STRING_GETDELIMFD_ERROR, 1, NULL);
+
+  /* Test unsigned wrapping. */
+  g_smtp_test_err_si_sub_size_t_ctr = 0;
+  s = "a";
+  smtp_unit_test_str_getdelimfd(s,
+                                strlen(s),
+                                '\n',
+                                STRING_GETDELIMFD_ERROR,
+                                0,
+                                NULL);
+  g_smtp_test_err_si_sub_size_t_ctr = -1;
+
+  for(i = 0; i < 5; i++){
+    g_smtp_test_err_si_add_size_t_ctr = i;
+    s = "a";
+    smtp_unit_test_str_getdelimfd(s,
+                                  strlen(s),
+                                  '\n',
+                                  STRING_GETDELIMFD_ERROR,
+                                  0,
+                                  NULL);
+    g_smtp_test_err_si_add_size_t_ctr = -1;
+  }
+
+  memset(&gdfd, 0, sizeof(gdfd));
+  gdfd._buf = test_str;
+  smtp_unit_test_getdelimfd_set_line_and_buf(&gdfd, SIZE_MAX, -1);
+  smtp_unit_test_getdelimfd_set_line_and_buf(&gdfd, SIZE_MAX - 1, -1);
+  smtp_unit_test_getdelimfd_set_line_and_buf(&gdfd, SIZE_MAX - 2, -1);
+  g_smtp_test_err_si_sub_size_t_ctr = 1;
+  smtp_unit_test_getdelimfd_set_line_and_buf(&gdfd, strlen(test_str), -1);
+  g_smtp_test_err_si_sub_size_t_ctr = -1;
 }
 
 /**
@@ -1707,10 +1955,12 @@ smtp_unit_test_all_str_getdelimfd(void){
  */
 static void
 smtp_unit_test_all(void){
+  smtp_unit_test_all_si();
   smtp_unit_test_all_base64_decode();
   smtp_unit_test_all_base64_encode();
   smtp_unit_test_all_bin2hex();
   smtp_unit_test_all_stpcpy();
+  smtp_unit_test_all_reallocarray();
   smtp_unit_test_all_strdup();
   smtp_unit_test_all_str_replace();
   smtp_unit_test_all_smtp_utf8_charlen();
@@ -2380,9 +2630,9 @@ smtp_func_test_attachment_long_text(struct smtp_test_config *const config){
   long_text = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 5000);
   assert(long_text);
   rc = smtp_attachment_add_mem(config->smtp,
-			   "alphabet-repeat.txt",
-			   long_text,
-			   -1);
+                               "alphabet-repeat.txt",
+                               long_text,
+                               -1);
   assert(rc == SMTP_STATUS_OK);
   free(long_text);
 
@@ -3421,6 +3671,16 @@ test_failure_address_add(struct smtp_test_config *const config){
                         "\"invalid\"");
   assert(rc == SMTP_STATUS_PARAM);
 
+  /* Wrap when trying to increase size of address list. */
+  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+
   /* Memory allocation failed while trying to increase size of address list. */
   smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
   g_smtp_test_err_realloc_ctr = 0;
@@ -3489,6 +3749,12 @@ test_failure_attachment_add(struct smtp_test_config *const config){
                                -1);
   assert(rc == SMTP_STATUS_PARAM);
 
+  /* Wrap when increasing the attachment list size. */
+  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  rc = smtp_attachment_add_mem(config->smtp, "valid", "test", -1);
+  assert(rc == SMTP_STATUS_NOMEM);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
 
   /* Memory allocation failure while increasing the attachment list size. */
   smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
@@ -3597,12 +3863,17 @@ test_failure_header_add(struct smtp_test_config *const config){
                        "invalid\n");
   assert(rc == SMTP_STATUS_PARAM);
 
+  /* Wrap when increasing the header list size. */
+  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  rc = smtp_header_add(config->smtp, "key", "value");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+
   /* Memory allocation failure while trying to increase header list size. */
   smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
   g_smtp_test_err_realloc_ctr = 0;
-  rc = smtp_header_add(config->smtp,
-                       "key",
-                       "value");
+  rc = smtp_header_add(config->smtp, "key", "value");
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
@@ -3671,6 +3942,16 @@ test_failure_mail(struct smtp_test_config *const config){
   test_smtp_open_default(config);
   smtp_status_code_set(config->smtp, SMTP_STATUS_NOMEM);
   rc = smtp_mail(config->smtp, "body");
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
+  /* Wrap in @ref smtp_mail_envelope_header size calculation. */
+  test_smtp_open_default(config);
+  g_smtp_test_strlen_custom_ret = 1;
+  g_smtp_test_strlen_ret_value = SIZE_MAX - 3;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_strlen_custom_ret = 0;
+  g_smtp_test_strlen_ret_value = 0;
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
@@ -3751,6 +4032,30 @@ test_failure_mail(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
+  /* 1st wrap in @ref smtp_append_address_to_header */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 30;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
+  /* 2nd wrap in @ref smtp_append_address_to_header */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 31;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
+  /* 3rd wrap in @ref smtp_append_address_to_header */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 32;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
   /*
    * Failed to add FROM address to header using
    * @ref smtp_append_address_to_header.
@@ -3781,6 +4086,22 @@ test_failure_mail(struct smtp_test_config *const config){
   g_smtp_test_err_realloc_ctr = 5;
   rc = smtp_mail(config->smtp, "body");
   g_smtp_test_err_realloc_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
+  /* 1st wrap in @ref smtp_print_header. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 48;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
+  /* 2nd wrap in @ref smtp_print_header. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 49;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
@@ -3822,6 +4143,14 @@ test_failure_mail(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
+  /* Wrap in @ref smtp_print_mime_header_and_body size calculation. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 92;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
   /*
    * Memory allocation failure in @ref smtp_print_mime_email ->
    * @ref smtp_print_mime_header_and_body   ->
@@ -3846,6 +4175,22 @@ test_failure_mail(struct smtp_test_config *const config){
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(rc == SMTP_STATUS_SEND);
+  smtp_close(config->smtp);
+
+  /* 1st wrap in @ref smtp_print_mime_attachment. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 94;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
+  smtp_close(config->smtp);
+
+  /* 2nd wrap in @ref smtp_print_mime_attachment. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 95;
+  rc = smtp_mail(config->smtp, "body");
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_NOMEM);
   smtp_close(config->smtp);
 
   /* Memory allocation failure in @ref smtp_print_mime_attachment. */
@@ -3933,6 +4278,23 @@ test_failure_close(struct smtp_test_config *const config){
   rc = smtp_close(config->smtp);
   g_smtp_test_err_close_ctr = -1;
   assert(rc == SMTP_STATUS_CLOSE);
+
+  /* Failed to send QUIT and close the socket file descriptor. */
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+  g_smtp_test_err_send_ctr = 0;
+  g_smtp_test_err_ssl_write_ctr = 0;
+  g_smtp_test_err_close_ctr = 0;
+  rc = smtp_close(config->smtp);
+  g_smtp_test_err_send_ctr = -1;
+  g_smtp_test_err_ssl_write_ctr = -1;
+  g_smtp_test_err_close_ctr = -1;
+  assert(rc == SMTP_STATUS_SEND);
 }
 
 /**
@@ -3981,6 +4343,32 @@ test_failure_auth(struct smtp_test_config *const config){
 
   smtp_test_sleep(15);
 
+  /* PLAIN - Wrap in 1st calculation for memory allocation in (1). */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_PLAIN,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* PLAIN - Wrap in 2nd calculation for memory allocation in (1). */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 1;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_PLAIN,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
   /* PLAIN - Memory allocation failure in (1). */
   test_smtp_open_default(config);
   g_smtp_test_err_malloc_ctr = 0;
@@ -4002,6 +4390,19 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->user,
                  config->pass);
   g_smtp_test_err_calloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* PLAIN - Wrap in calculation for memory allocation in (3). */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 2;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_PLAIN,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
   smtp_close(config->smtp);
 
@@ -4043,6 +4444,19 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->user,
                  config->pass);
   g_smtp_test_err_calloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* LOGIN - Wrap in calculation for memory allocation in (2). */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 0;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_LOGIN,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
   smtp_close(config->smtp);
 
@@ -4114,6 +4528,19 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->pass);
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* LOGIN - @ref smtp_puts_terminate wrap in (3). */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 7;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_LOGIN,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
   smtp_close(config->smtp);
 
@@ -4237,6 +4664,32 @@ test_failure_auth(struct smtp_test_config *const config){
                  config->user,
                  config->pass);
   g_smtp_test_err_malloc_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (5) Wrap in 1st memory calculation. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 8;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
+  assert(rc == SMTP_STATUS_AUTH);
+  smtp_close(config->smtp);
+
+  smtp_test_sleep(15);
+
+  /* CRAM-MD5 (5) Wrap in 2nd memory calculation. */
+  test_smtp_open_default(config);
+  g_smtp_test_err_si_add_size_t_ctr = 9;
+  rc = smtp_auth(config->smtp,
+                 SMTP_AUTH_CRAM_MD5,
+                 config->user,
+                 config->pass);
+  g_smtp_test_err_si_add_size_t_ctr = -1;
   assert(rc == SMTP_STATUS_AUTH);
   smtp_close(config->smtp);
 

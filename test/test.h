@@ -55,13 +55,28 @@ struct str_getdelimfd;
  */
 #define SMTP_DATE_MAX_SZ (32 + 5)
 
+int
+smtp_si_add_size_t(const size_t a,
+                   const size_t b,
+                   size_t *const result);
+
+int
+smtp_si_sub_size_t(const size_t a,
+                   const size_t b,
+                   size_t *const result);
+
+int
+smtp_si_mul_size_t(const size_t a,
+                   const size_t b,
+                   size_t *const result);
+
 long
 smtp_base64_decode(const char *const buf,
                    unsigned char **decode);
 
 char *
 smtp_base64_encode(const char *const buf,
-                   long buflen);
+                   size_t buflen);
 
 char *
 smtp_bin2hex(const unsigned char *const s,
@@ -70,12 +85,21 @@ smtp_bin2hex(const unsigned char *const s,
 int
 smtp_str_getdelimfd(struct str_getdelimfd *const gdfd);
 
+int
+smtp_str_getdelimfd_set_line_and_buf(struct str_getdelimfd *const gdfd,
+                                     size_t copy_len);
+
 void
 smtp_str_getdelimfd_free(struct str_getdelimfd *const gdfd);
 
 char *
 smtp_stpcpy(char *s1,
             const char *s2);
+
+void *
+smtp_reallocarray(void *ptr,
+                  size_t nmemb,
+                  size_t size);
 
 char *
 smtp_strdup(const char *s);
@@ -105,7 +129,7 @@ smtp_fold_whitespace(const char *const s,
 
 char *
 smtp_chunk_split(const char *const s,
-                 int chunklen,
+                 size_t chunklen,
                  const char *const end);
 
 char *
@@ -139,6 +163,8 @@ int
 smtp_header_value_validate(const char *const value);
 
 /* test seams */
+int
+smtp_test_seam_dec_err_ctr(int *const test_err_ctr);
 
 BIO *
 smtp_test_seam_bio_new_socket(int sock,
@@ -255,6 +281,9 @@ smtp_test_seam_ssl_write(SSL *ssl,
 int
 smtp_test_seam_sprintf(char *s,
                        const char *format, ...);
+
+size_t
+smtp_test_seam_strlen(const char *s);
 
 time_t
 smtp_test_seam_time(time_t *tloc);
@@ -408,6 +437,27 @@ int g_smtp_test_err_select_ctr;
 int g_smtp_test_err_send_ctr;
 
 /**
+ * Counter for @ref smtp_si_add_size_t.
+ *
+ * See @ref test_seams_countdown_global for more details.
+ */
+int g_smtp_test_err_si_add_size_t_ctr;
+
+/**
+ * Counter for @ref smtp_si_sub_size_t.
+ *
+ * See @ref test_seams_countdown_global for more details.
+ */
+int g_smtp_test_err_si_sub_size_t_ctr;
+
+/**
+ * Counter for @ref smtp_si_mul_size_t.
+ *
+ * See @ref test_seams_countdown_global for more details.
+ */
+int g_smtp_test_err_si_mul_size_t_ctr;
+
+/**
  * Counter for @ref smtp_test_seam_socket.
  *
  * See @ref test_seams_countdown_global for more details.
@@ -484,6 +534,24 @@ int g_smtp_test_err_sprintf_ctr;
  * a value of 0.
  */
 int g_smtp_test_err_sprintf_rc;
+
+/**
+ * Indicates if the strlen() function should return a test value.
+ *
+ * This can get set to one of two values:
+ *   -  0 - The strlen() function will operate normally.
+ *   - !0 - The strlen() function will return the value specified in
+ *          @ref g_smtp_test_strlen_ret_value.
+ */
+int g_smtp_test_strlen_custom_ret;
+
+/**
+ * Value to force the strlen() function to return.
+ *
+ * This value will only get returned if @ref g_smtp_test_strlen_custom_ret
+ * has been set.
+ */
+size_t g_smtp_test_strlen_ret_value;
 
 /**
  * Indicates if the time() function should return a custom value.
