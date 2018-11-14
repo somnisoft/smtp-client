@@ -1579,23 +1579,42 @@ smtp_read_and_parse_code(struct smtp *const smtp){
  * @param[in] len Number of bytes in buf.
  * @return @ref smtp_status_code.
  */
-static int
+SMTP_LINKAGE enum smtp_status_code
 smtp_write(struct smtp *const smtp,
            const char *const buf,
            size_t len){
+  size_t bytes_to_send;
+  int bytes_sent;
+  const char *buf_offset;
+
   smtp_puts_dbg(smtp, "Client", buf);
 
-  if(smtp->tls_on){
+  bytes_to_send = len;
+  buf_offset = buf;
+  while(bytes_to_send){
+    if(bytes_to_send > INT_MAX){
+      return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
+    }
+
+    if(smtp->tls_on){
 #ifdef SMTP_OPENSSL
-    if(SSL_write(smtp->tls, buf, len) <= 0){
-      return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
-    }
+      bytes_sent = SSL_write(smtp->tls, buf_offset, bytes_to_send);
+      if(bytes_sent <= 0){
+        return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
+      }
+#else /* !(SMTP_OPENSSL) */
+      /* unreachable */
+      bytes_sent = 0;
 #endif /* SMTP_OPENSSL */
-  }
-  else{
-    if(send(smtp->sock, buf, len, 0) < 0){
-      return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
     }
+    else{
+      bytes_sent = send(smtp->sock, buf_offset, bytes_to_send, 0);
+      if(bytes_sent < 0){
+        return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
+      }
+    }
+    bytes_to_send -= bytes_sent;
+    buf_offset += bytes_sent;
   }
 
   return smtp->status_code;
@@ -1608,7 +1627,7 @@ smtp_write(struct smtp *const smtp,
  * @param[in] s    Null-terminated string to send to the SMTP server.
  * @return See @ref smtp_status_code and @ref smtp_write.
  */
-static int
+static enum smtp_status_code
 smtp_puts(struct smtp *const smtp,
           const char *const s){
   return smtp_write(smtp, s, strlen(s));
@@ -1622,7 +1641,7 @@ smtp_puts(struct smtp *const smtp,
  * @param[in] s    Null-terminated string to send to the SMTP server.
  * @return See @ref smtp_status_code and @ref smtp_puts.
  */
-static int
+static enum smtp_status_code
 smtp_puts_terminate(struct smtp *const smtp,
                     const char *const s){
   int rc;

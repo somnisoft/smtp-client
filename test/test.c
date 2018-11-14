@@ -3243,6 +3243,28 @@ smtp_func_test_all_body(struct smtp_test_config *const config){
 }
 
 /**
+ * Manipulate the number of bytes sent over the network at a time.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_all_write(struct smtp_test_config *const config){
+  int rc;
+
+  g_smtp_test_send_one_byte = 1;
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_NO_CERT_VERIFY,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+  g_smtp_test_send_one_byte = 0;
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
  * Send a test email with debug mode disabled.
  *
  * @param[in] config SMTP server context.
@@ -3295,6 +3317,19 @@ smtp_func_test_all_nodebug(struct smtp_test_config *const config){
 static void
 test_failure_misc(struct smtp_test_config *const config){
   int rc;
+
+  /* Send buffer to large in @ref smtp_write. */
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+  rc = smtp_write(config->smtp, "", (size_t)INT_MAX + 1);
+  assert(rc == SMTP_STATUS_SEND);
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_SEND);
 
   /* Memory allocation failure in smtp_puts_debug - the error gets ignored. */
   g_smtp_test_err_malloc_ctr = 0;
@@ -4829,6 +4864,7 @@ smtp_func_test_postfix(void){
   smtp_func_test_all_names(&config);
   smtp_func_test_all_headers(&config);
   smtp_func_test_all_body(&config);
+  smtp_func_test_all_write(&config);
   smtp_func_test_all_nodebug(&config);
 }
 

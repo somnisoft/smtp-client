@@ -133,6 +133,11 @@ int g_smtp_test_err_select_ctr = -1;
 int g_smtp_test_err_send_ctr = -1;
 
 /**
+ * See @ref g_smtp_test_send_one_byte.
+ */
+int g_smtp_test_send_one_byte = 0;
+
+/**
  * See @ref g_smtp_test_err_si_add_size_t_ctr
  * and @ref test_seams_countdown_global.
  */
@@ -578,11 +583,21 @@ smtp_test_seam_send(int socket,
                     const void *buffer,
                     size_t length,
                     int flags){
+  long sent_bytes;
+  size_t bytes_to_send;
+
   if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_send_ctr)){
     errno = EBADF;
-    return -1;
+    sent_bytes = -1;
   }
-  return send(socket, buffer, length, flags);
+  else{
+    bytes_to_send = length;
+    if(g_smtp_test_send_one_byte){
+      bytes_to_send = 1;
+    }
+    sent_bytes = send(socket, buffer, bytes_to_send, flags);
+  }
+  return sent_bytes;
 }
 
 /**

@@ -82,6 +82,11 @@ char *
 smtp_bin2hex(const unsigned char *const s,
              size_t slen);
 
+enum smtp_status_code
+smtp_write(struct smtp *const smtp,
+           const char *const buf,
+           size_t len);
+
 int
 smtp_str_getdelimfd(struct str_getdelimfd *const gdfd);
 
@@ -435,6 +440,11 @@ int g_smtp_test_err_select_ctr;
  * See @ref test_seams_countdown_global for more details.
  */
 int g_smtp_test_err_send_ctr;
+
+/**
+ * Indicate if we should only send one byte at a time.
+ */
+int g_smtp_test_send_one_byte;
 
 /**
  * Counter for @ref smtp_si_add_size_t.
