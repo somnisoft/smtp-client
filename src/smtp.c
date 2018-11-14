@@ -500,6 +500,19 @@ smtp_str_getdelimfd_free(struct str_getdelimfd *const gdfd){
 }
 
 /**
+ * Free the @ref str_getdelimfd and return the @ref STRING_GETDELIMFD_ERROR
+ * error code.
+ *
+ * @param[in] gdfd See @ref str_getdelimfd.
+ * @return @ref str_getdelim_retcode.
+ */
+static enum str_getdelim_retcode
+smtp_str_getdelimfd_throw_error(struct str_getdelimfd *const gdfd){
+  smtp_str_getdelimfd_free(gdfd);
+  return STRING_GETDELIMFD_ERROR;
+}
+
+/**
  * Read and parse a delimited string using a custom socket read function.
  *
  * This interface handles all of the logic for expanding the buffer,
@@ -530,42 +543,36 @@ smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
                                         gdfd->delim,
                                         &delim_pos)){
       if(smtp_str_getdelimfd_set_line_and_buf(gdfd, delim_pos) < 0){
-        smtp_str_getdelimfd_free(gdfd);
-        return STRING_GETDELIMFD_ERROR;
+        return smtp_str_getdelimfd_throw_error(gdfd);
       }
       return STRING_GETDELIMFD_NEXT;
     }else if(bytes_read == 0){
       if(smtp_str_getdelimfd_set_line_and_buf(gdfd, gdfd->_buf_len) < 0){
-        smtp_str_getdelimfd_free(gdfd);
-        return STRING_GETDELIMFD_ERROR;
+        return smtp_str_getdelimfd_throw_error(gdfd);
       }
       return STRING_GETDELIMFD_DONE;
     }
 
     if(smtp_si_sub_size_t(gdfd->_bufsz, gdfd->_buf_len, &buf_sz_remaining)){
-      smtp_str_getdelimfd_free(gdfd);
-      return STRING_GETDELIMFD_ERROR;
+      return smtp_str_getdelimfd_throw_error(gdfd);
     }
 
     if(buf_sz_remaining < SMTP_GETDELIM_READ_SZ){
       if(smtp_si_add_size_t(buf_sz_remaining,
                             SMTP_GETDELIM_READ_SZ,
                             &buf_sz_new)){
-        smtp_str_getdelimfd_free(gdfd);
-        return STRING_GETDELIMFD_ERROR;
+        return smtp_str_getdelimfd_throw_error(gdfd);
       }
       buf_new = realloc(gdfd->_buf, buf_sz_new);
       if(buf_new == NULL){
-        smtp_str_getdelimfd_free(gdfd);
-        return STRING_GETDELIMFD_ERROR;
+        return smtp_str_getdelimfd_throw_error(gdfd);
       }
       gdfd->_buf = buf_new;
       gdfd->_bufsz = buf_sz_new;
     }
 
     if(smtp_si_add_size_t((size_t)gdfd->_buf, gdfd->_buf_len, NULL)){
-      smtp_str_getdelimfd_free(gdfd);
-      return STRING_GETDELIMFD_ERROR;
+      return smtp_str_getdelimfd_throw_error(gdfd);
     }
     read_buf_ptr = gdfd->_buf + gdfd->_buf_len;
     bytes_read = (*gdfd->getdelimfd_read)(gdfd,
@@ -573,8 +580,7 @@ smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
                                           SMTP_GETDELIM_READ_SZ);
     if(bytes_read < 0 ||
        smtp_si_add_size_t(gdfd->_buf_len, bytes_read, &gdfd->_buf_len)){
-      smtp_str_getdelimfd_free(gdfd);
-      return STRING_GETDELIMFD_ERROR;
+      return smtp_str_getdelimfd_throw_error(gdfd);
     }
   }
 }
