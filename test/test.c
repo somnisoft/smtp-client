@@ -1488,7 +1488,7 @@ static void
 smtp_unit_test_date_rfc_2822(time_t t,
                              const char *const expect,
                              int expect_rc){
-  char result[SMTP_DATE_MAX_SZ];
+  char result[1000];
   int rc;
 
   g_smtp_test_time_custom_ret = 1;

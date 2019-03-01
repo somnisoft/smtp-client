@@ -2199,7 +2199,7 @@ smtp_initiate_handshake(struct smtp *const smtp,
    Add more bytes to the 32 maximum size to silence compiler warning on the
    computed UTF offset.
  */
-#define SMTP_DATE_MAX_SZ (32 + 5)
+#define SMTP_DATE_MAX_SZ (32 + 15)
 
 /**
  * Convert the time into an RFC 2822 formatted string.
@@ -2291,7 +2291,7 @@ smtp_date_rfc_2822(char *const date){
                tm_local.tm_sec, /* 0 - 60 (leap second) */
                offset_utc);
 
-  if(rc + 1 != SMTP_DATE_MAX_SZ - 5){ /* See @ref SMTP_DATE_MAX_SZ for -5. */
+  if(rc + 1 != SMTP_DATE_MAX_SZ - 15){ /* See @ref SMTP_DATE_MAX_SZ for -5. */
     return -1;
   }
 

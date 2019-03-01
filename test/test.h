@@ -47,14 +47,6 @@
 struct smtp_command;
 struct str_getdelimfd;
 
-/**
- * Maximum size of an RFC 2822 date string.
- *
- * Also defined in @ref smtp.c. Redefined here because the unit tests
- * need to use this max size when calling the @ref smtp_date_rfc_2822 function.
- */
-#define SMTP_DATE_MAX_SZ (32 + 5)
-
 int
 smtp_si_add_size_t(const size_t a,
                    const size_t b,
