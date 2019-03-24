@@ -62,7 +62,7 @@ smtp_si_mul_size_t(const size_t a,
                    const size_t b,
                    size_t *const result);
 
-long
+size_t
 smtp_base64_decode(const char *const buf,
                    unsigned char **decode);
 
@@ -106,13 +106,13 @@ smtp_str_replace(const char *const search,
             const char *const replace,
             const char *const s);
 
-int
-smtp_utf8_charlen(unsigned char c);
+size_t
+smtp_utf8_charlen(char c);
 
 int
 smtp_str_has_nonascii_utf8(const char *const s);
 
-long
+size_t
 smtp_strnlen_utf8(const char *s,
                   size_t maxlen);
 
@@ -200,7 +200,7 @@ smtp_test_seam_hmac(const EVP_MD *evp_md,
                     const void *key,
                     int key_len,
                     const unsigned char *d,
-                    int n,
+                    size_t n,
                     unsigned char *md,
                     unsigned int *md_len);
 
@@ -232,7 +232,7 @@ smtp_test_seam_select(int nfds,
                       fd_set *errorfds,
                       struct timeval *timeout);
 
-long
+ssize_t
 smtp_test_seam_send(int socket,
                     const void *buffer,
                     size_t length,
@@ -290,14 +290,14 @@ smtp_test_seam_time(time_t *tloc);
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_bio_new_socket_ctr;
+extern int g_smtp_test_err_bio_new_socket_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_bio_should_retry.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_bio_should_retry_ctr;
+extern int g_smtp_test_err_bio_should_retry_ctr;
 
 /**
  * Value to force the BIO_should_retry() function to return.
@@ -306,98 +306,98 @@ int g_smtp_test_err_bio_should_retry_ctr;
  * @ref g_smtp_test_err_bio_should_retry_ctr
  * has a value of 0 and this does not have a value of -1.
  */
-int g_smtp_test_err_bio_should_retry_rc;
+extern int g_smtp_test_err_bio_should_retry_rc;
 
 /**
  * Counter for @ref smtp_test_seam_calloc.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_calloc_ctr;
+extern int g_smtp_test_err_calloc_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_close.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_close_ctr;
+extern int g_smtp_test_err_close_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_connect.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_connect_ctr;
+extern int g_smtp_test_err_connect_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_err_peek_error.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_err_peek_error_ctr;
+extern int g_smtp_test_err_err_peek_error_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_fclose.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_fclose_ctr;
+extern int g_smtp_test_err_fclose_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ferror.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ferror_ctr;
+extern int g_smtp_test_err_ferror_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_gmtime_r.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_gmtime_r_ctr;
+extern int g_smtp_test_err_gmtime_r_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_hmac.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_hmac_ctr;
+extern int g_smtp_test_err_hmac_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_localtime_r.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_localtime_r_ctr;
+extern int g_smtp_test_err_localtime_r_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_malloc.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_malloc_ctr;
+extern int g_smtp_test_err_malloc_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_mktime.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_mktime_ctr;
+extern int g_smtp_test_err_mktime_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_realloc.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_realloc_ctr;
+extern int g_smtp_test_err_realloc_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_recv.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_recv_ctr;
+extern int g_smtp_test_err_recv_ctr;
 
 /**
  * Value to force the recv() function to return.
@@ -406,7 +406,7 @@ int g_smtp_test_err_recv_ctr;
  * @ref g_smtp_test_err_recv_ctr
  * has a value of 0 and this does not have a value of -1.
  */
-int g_smtp_test_err_recv_rc;
+extern int g_smtp_test_err_recv_rc;
 
 /**
  * Set the received bytes in recv() and SSL_read() to this value if it
@@ -417,117 +417,117 @@ int g_smtp_test_err_recv_rc;
  *
  * See @ref test_seams_countdown_global for more details.
  */
-char g_smtp_test_err_recv_bytes[90];
+extern char g_smtp_test_err_recv_bytes[90];
 
 /**
  * Counter for @ref smtp_test_seam_select.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_select_ctr;
+extern int g_smtp_test_err_select_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_send.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_send_ctr;
+extern int g_smtp_test_err_send_ctr;
 
 /**
  * Indicate if we should only send one byte at a time.
  */
-int g_smtp_test_send_one_byte;
+extern int g_smtp_test_send_one_byte;
 
 /**
  * Counter for @ref smtp_si_add_size_t.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_si_add_size_t_ctr;
+extern int g_smtp_test_err_si_add_size_t_ctr;
 
 /**
  * Counter for @ref smtp_si_sub_size_t.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_si_sub_size_t_ctr;
+extern int g_smtp_test_err_si_sub_size_t_ctr;
 
 /**
  * Counter for @ref smtp_si_mul_size_t.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_si_mul_size_t_ctr;
+extern int g_smtp_test_err_si_mul_size_t_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_socket.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_socket_ctr;
+extern int g_smtp_test_err_socket_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_connect.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_connect_ctr;
+extern int g_smtp_test_err_ssl_connect_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_ctx_new.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_ctx_new_ctr;
+extern int g_smtp_test_err_ssl_ctx_new_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_do_handshake.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_do_handshake_ctr;
+extern int g_smtp_test_err_ssl_do_handshake_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_get_peer_certificate.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_get_peer_certificate_ctr;
+extern int g_smtp_test_err_ssl_get_peer_certificate_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_x509_check_host.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_x509_check_host_ctr;
+extern int g_smtp_test_err_x509_check_host_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_new.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_new_ctr;
+extern int g_smtp_test_err_ssl_new_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_read.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_read_ctr;
+extern int g_smtp_test_err_ssl_read_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_ssl_write.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_ssl_write_ctr;
+extern int g_smtp_test_err_ssl_write_ctr;
 
 /**
  * Counter for @ref smtp_test_seam_sprintf.
  *
  * See @ref test_seams_countdown_global for more details.
  */
-int g_smtp_test_err_sprintf_ctr;
+extern int g_smtp_test_err_sprintf_ctr;
 
 /**
  * Value to force the sprintf() function to return.
@@ -535,7 +535,7 @@ int g_smtp_test_err_sprintf_ctr;
  * This value will only get returned if @ref g_smtp_test_err_sprintf_ctr has
  * a value of 0.
  */
-int g_smtp_test_err_sprintf_rc;
+extern int g_smtp_test_err_sprintf_rc;
 
 /**
  * Indicates if the strlen() function should return a test value.
@@ -545,7 +545,7 @@ int g_smtp_test_err_sprintf_rc;
  *   - !0 - The strlen() function will return the value specified in
  *          @ref g_smtp_test_strlen_ret_value.
  */
-int g_smtp_test_strlen_custom_ret;
+extern int g_smtp_test_strlen_custom_ret;
 
 /**
  * Value to force the strlen() function to return.
@@ -553,7 +553,7 @@ int g_smtp_test_strlen_custom_ret;
  * This value will only get returned if @ref g_smtp_test_strlen_custom_ret
  * has been set.
  */
-size_t g_smtp_test_strlen_ret_value;
+extern size_t g_smtp_test_strlen_ret_value;
 
 /**
  * Indicates if the time() function should return a custom value.
@@ -563,7 +563,7 @@ size_t g_smtp_test_strlen_ret_value;
  *   - !0 - The time() function will return the value specified in
  *          @ref g_smtp_test_time_ret_value.
  */
-int g_smtp_test_time_custom_ret;
+extern int g_smtp_test_time_custom_ret;
 
 /**
  * Value to force the time() function to return.
@@ -571,7 +571,7 @@ int g_smtp_test_time_custom_ret;
  * This value will only get returned if @ref g_smtp_test_time_custom_ret has
  * a positive value.
  */
-time_t g_smtp_test_time_ret_value;
+extern time_t g_smtp_test_time_ret_value;
 
 #endif /* SMTP_TEST_H */
 

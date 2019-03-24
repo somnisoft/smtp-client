@@ -10,13 +10,6 @@
  *
  * This software has been placed into the public domain using CC0.
  */
-
-/**
- * Need to define this on some POSIX systems in order to get access to the
- * getaddrinfo and localtime_r functions.
- */
-#define _POSIX_C_SOURCE 200112L
-
 #include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -357,7 +350,7 @@ smtp_test_seam_connect(int socket,
 unsigned long
 smtp_test_seam_err_peek_error(void){
   if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_err_peek_error_ctr)){
-    return -1;
+    return 1;
   }
   return ERR_peek_error();
 }
@@ -429,7 +422,7 @@ smtp_test_seam_hmac(const EVP_MD *evp_md,
                     const void *key,
                     int key_len,
                     const unsigned char *d,
-                    int n,
+                    size_t n,
                     unsigned char *md,
                     unsigned int *md_len){
   if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_hmac_ctr)){
@@ -529,9 +522,9 @@ smtp_test_seam_recv(int socket,
     }
     if(*g_smtp_test_err_recv_bytes){
       bytes_inject_len = strlen(g_smtp_test_err_recv_bytes);
-      assert(bytes_inject_len < length);
+      assert(bytes_inject_len < length && bytes_inject_len < LONG_MAX);
       memcpy(buffer, g_smtp_test_err_recv_bytes, bytes_inject_len);
-      return bytes_inject_len;
+      return (long)bytes_inject_len;
     }
     errno = EBADF;
     return -1;
@@ -578,7 +571,7 @@ smtp_test_seam_select(int nfds,
  * @retval >=0 Number of bytes sent.
  * @retval  -1 Failed to send bytes over the network.
  */
-long
+ssize_t
 smtp_test_seam_send(int socket,
                     const void *buffer,
                     size_t length,
@@ -738,9 +731,9 @@ smtp_test_seam_ssl_read(SSL *ssl,
   if(smtp_test_seam_dec_err_ctr(&g_smtp_test_err_ssl_read_ctr)){
     if(*g_smtp_test_err_recv_bytes){
       bytes_inject_len = strlen(g_smtp_test_err_recv_bytes);
-      assert(bytes_inject_len < (size_t)num);
+      assert(bytes_inject_len < (size_t)num && bytes_inject_len < INT_MAX);
       memcpy(buf, g_smtp_test_err_recv_bytes, bytes_inject_len);
-      return bytes_inject_len;
+      return (int)bytes_inject_len;
     }
     return -1;
   }

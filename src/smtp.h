@@ -141,9 +141,9 @@ enum smtp_connection_security{
   /**
    * Use TLS when initially connecting to server.
    *
-   * @deprecated SMTP clients should not use this connection type unless
-   *             connecting to a legacy SMTP server which requires it.
-   *             Instead, use @ref SMTP_SECURITY_STARTTLS if possible.
+   * SMTP clients should not use this connection type unless
+   * connecting to a legacy SMTP server which requires it.
+   * Instead, use @ref SMTP_SECURITY_STARTTLS if possible.
    */
   SMTP_SECURITY_TLS,
 #endif /* SMTP_OPENSSL */
@@ -271,7 +271,7 @@ enum smtp_status_code
 smtp_attachment_add_mem(struct smtp *const smtp,
                         const char *const name,
                         const void *const data,
-                        long datasz);
+                        size_t datasz);
 
 void smtp_attachment_clear_all(struct smtp *const smtp);
 
@@ -391,11 +391,6 @@ struct str_getdelimfd{
   size_t _buf_len;
 
   /**
-   * Character delimiter used for determining line separation.
-   */
-  int delim;
-
-  /**
    * Current line containing the text up to the delimiter.
    */
   char *line;
@@ -422,6 +417,16 @@ struct str_getdelimfd{
    * User data which gets sent to the read handler function.
    */
   void *user_data;
+
+  /**
+   * Character delimiter used for determining line separation.
+   */
+  int delim;
+
+  /**
+   * Padding structure to align.
+   */
+  char pad[4];
 };
 
 #endif /* SMTP_INTERNAL_DEFINE */

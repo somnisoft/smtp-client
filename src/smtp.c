@@ -30,11 +30,6 @@
 # include <winsock2.h>
 # include <ws2tcpip.h>
 #else /* POSIX */
-/**
- * Need to define this on some POSIX systems in order to get access to the
- * getaddrinfo and localtime_r functions.
- */
-# define _POSIX_C_SOURCE 200112L
 # include <netinet/in.h>
 # include <sys/select.h>
 # include <sys/socket.h>
@@ -104,11 +99,6 @@
  */
 struct smtp_address{
   /**
-   * Specify from, to, cc, bcc.
-   */
-  enum smtp_address_type type;
-
-  /**
    * Email address without any special formatting.
    *
    * For example: mail@example.com
@@ -119,6 +109,16 @@ struct smtp_address{
    * Description of the email address.
    */
   char *name;
+
+  /**
+   * Specify from, to, cc, bcc.
+   */
+  enum smtp_address_type type;
+
+  /**
+   * Padding structure to align.
+   */
+  char pad[4];
 };
 
 /**
@@ -201,18 +201,18 @@ struct smtp{
   size_t num_attachment;
 
   /**
-   * Status code indicating success/failure.
-   *
-   * This code gets returned by most of the header functions.
-   */
-  enum smtp_status_code status_code;
-
-  /**
    * Timeout in seconds to wait before returning with an error.
    *
    * This applies to both writing to and reading from a network socket.
    */
   long timeout_sec;
+
+  /**
+   * Status code indicating success/failure.
+   *
+   * This code gets returned by most of the header functions.
+   */
+  enum smtp_status_code status_code;
 
   /**
    * Indicates if this context has an active TLS connection.
@@ -351,11 +351,11 @@ smtp_si_mul_size_t(const size_t a,
  * Wait until more data has been made available on the socket read end.
  *
  * @param[in] smtp SMTP client context.
- * @retval  0 If data available to read on the socket.
- * @retval -1 If the connection times out before any data appears on the
- *            socket.
+ * @retval SMTP_STATUS_OK   If data available to read on the socket.
+ * @retval SMTP_STATUS_RECV If the connection times out before any data
+ *                          appears on the socket.
  */
-static int
+static enum smtp_status_code
 smtp_str_getdelimfd_read_timeout(struct smtp *const smtp){
   fd_set readfds;
   struct timeval timeout;
@@ -369,7 +369,7 @@ smtp_str_getdelimfd_read_timeout(struct smtp *const smtp){
   if(sel_rc < 1){
     return smtp_status_code_set(smtp, SMTP_STATUS_RECV);
   }
-  return smtp->status_code;
+  return SMTP_STATUS_OK;
 }
 
 /**
@@ -402,7 +402,11 @@ smtp_str_getdelimfd_read(struct str_getdelimfd *const gdfd,
   if(smtp->tls_on){
 #ifdef SMTP_OPENSSL
     do{
-      bytes_read = SSL_read(smtp->tls, buf, count);
+      /*
+       * Count will never have a value greater than SMTP_GETDELIM_READ_SZ,
+       * so we can safely convert this to an int.
+       */
+      bytes_read = SSL_read(smtp->tls, buf, (int)count);
     } while(bytes_read <= 0 && BIO_should_retry(smtp->tls_bio));
 #endif /* SMTP_OPENSSL */
   }
@@ -504,7 +508,7 @@ smtp_str_getdelimfd_free(struct str_getdelimfd *const gdfd){
  * error code.
  *
  * @param[in] gdfd See @ref str_getdelimfd.
- * @return @ref str_getdelim_retcode.
+ * @return See @ref str_getdelim_retcode.
  */
 static enum str_getdelim_retcode
 smtp_str_getdelimfd_throw_error(struct str_getdelimfd *const gdfd){
@@ -520,7 +524,7 @@ smtp_str_getdelimfd_throw_error(struct str_getdelimfd *const gdfd){
  * to the caller for handling.
  *
  * @param[in] gdfd See @ref str_getdelimfd.
- * @return @ref str_getdelim_retcode.
+ * @return See @ref str_getdelim_retcode.
  */
 SMTP_LINKAGE enum str_getdelim_retcode
 smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
@@ -579,7 +583,9 @@ smtp_str_getdelimfd(struct str_getdelimfd *const gdfd){
                                           read_buf_ptr,
                                           SMTP_GETDELIM_READ_SZ);
     if(bytes_read < 0 ||
-       smtp_si_add_size_t(gdfd->_buf_len, bytes_read, &gdfd->_buf_len)){
+       smtp_si_add_size_t(gdfd->_buf_len,
+                          (size_t)bytes_read,
+                          &gdfd->_buf_len)){
       return smtp_str_getdelimfd_throw_error(gdfd);
     }
   }
@@ -770,7 +776,7 @@ smtp_str_replace(const char *const search,
  * table. Since 2^6 = 64, this array has 64 entries which maps directly from
  * the 6 bit value into the corresponding array value.
  */
-static unsigned char g_base64_encode_table[] = {
+static char g_base64_encode_table[] = {
   'A','B','C','D','E','F','G','H','I','J',
   'K','L','M','N','O','P','Q','R','S','T',
   'U','V','W','X','Y','Z',
@@ -919,12 +925,12 @@ g_base64_decode_table[] = {
  * @param[in]  buf    Buffer containing bytes to decode.
  * @param[out] decode Buffer for storing base64 decoded bytes.
  * @retval >0 Length of the decoded block.
- * @retval -1 If the block contains invalid base64 data.
+ * @retval  0 If the block contains invalid base64 data.
  */
-static int
+static size_t
 smtp_base64_decode_block(const unsigned char *const buf,
                          unsigned char *const decode){
-  int decode_block_len;
+  size_t decode_block_len;
   size_t i;
   signed char decode_table[4];
   unsigned char outb[3];
@@ -937,7 +943,7 @@ smtp_base64_decode_block(const unsigned char *const buf,
     }
     decode_table[i] = g_base64_decode_table[buf[i]];
     if(decode_table[i] < 0){
-      return -1;
+      return 0;
     }
   }
 
@@ -981,35 +987,36 @@ smtp_base64_decode_block(const unsigned char *const buf,
  * @retval >=0 Length of the data stored in the decode parameter.
  * @retval -1  Memory allocation failure or invalid base64 byte sequences.
  */
-SMTP_LINKAGE long
+SMTP_LINKAGE size_t
 smtp_base64_decode(const char *const buf,
                    unsigned char **decode){
   size_t buf_len;
   size_t buf_len_inc;
   size_t buf_i;
   unsigned char *b64_decode;
-  long decode_len;
-  int decode_block_len;
+  size_t decode_len;
+  size_t decode_block_len;
 
   *decode = NULL;
 
   buf_len = strlen(buf);
   if(buf_len % 4 != 0){
-    return -1;
+    return SIZE_MAX;
   }
 
   if(smtp_si_add_size_t(buf_len, 1, &buf_len_inc) ||
      (b64_decode = calloc(1, buf_len_inc)) == NULL){
-    return -1;
+    return SIZE_MAX;
   }
 
   decode_len = 0;
   for(buf_i = 0; buf_i < buf_len; buf_i += 4){
-    if((decode_block_len = smtp_base64_decode_block(
-                             (const unsigned char*)&buf[buf_i],
-                             &b64_decode[decode_len])) < 0){
+    decode_block_len = smtp_base64_decode_block(
+                         (const unsigned char*)&buf[buf_i],
+                         &b64_decode[decode_len]);
+    if(decode_block_len == 0){
       free(b64_decode);
-      return -1;
+      return SIZE_MAX;
     }
     decode_len += decode_block_len;
   }
@@ -1046,13 +1053,15 @@ smtp_bin2hex(const unsigned char *const s,
     return NULL;
   }
 
-  for(i = 0, j = 0; i < slen; i++, j += 2){
+  j = 0;
+  for(i = 0; i < slen; i++){
     hex = s[i];
     rc = sprintf(&snew[j], "%02x", hex);
     if(rc < 0 || (size_t)rc >= 3){
       free(snew);
       return NULL;
     }
+    j += 2;
   }
   snew[j] = '\0';
 
@@ -1072,22 +1081,25 @@ smtp_bin2hex(const unsigned char *const s,
  * @retval >0 Number of bytes for the current UTF-8 character sequence.
  * @retval -1 Invalid byte sequence.
  */
-SMTP_LINKAGE int
-smtp_utf8_charlen(unsigned char c){
-  if((c & 0x80) == 0){         /* 0XXXXXXX */
+SMTP_LINKAGE size_t
+smtp_utf8_charlen(char c){
+  unsigned char uc;
+
+  uc = (unsigned char)c;
+  if((uc & 0x80) == 0){         /* 0XXXXXXX */
     return 1;
   }
-  else if((c & 0xE0) == 0xC0){ /* 110XXXXX */
+  else if((uc & 0xE0) == 0xC0){ /* 110XXXXX */
     return 2;
   }
-  else if((c & 0xF0) == 0xE0){ /* 1110XXXX */
+  else if((uc & 0xF0) == 0xE0){ /* 1110XXXX */
     return 3;
   }
-  else if((c & 0xF8) == 0xF0){ /* 11110XXX */
+  else if((uc & 0xF8) == 0xF0){ /* 11110XXX */
     return 4;
   }
   else{                        /* invalid  */
-    return -1;
+    return 0;
   }
 }
 
@@ -1103,8 +1115,8 @@ smtp_utf8_charlen(unsigned char c){
  */
 SMTP_LINKAGE int
 smtp_str_has_nonascii_utf8(const char *const s){
-  int i;
-  int charlen;
+  size_t i;
+  size_t charlen;
 
   for(i = 0; s[i]; i++){
     charlen = smtp_utf8_charlen(s[i]);
@@ -1129,22 +1141,22 @@ smtp_str_has_nonascii_utf8(const char *const s){
  * @retval maxlen    If length of s has more bytes than maxlen.
  * @retval -1        If @p s contains an invalid UTF-8 byte sequence.
  */
-SMTP_LINKAGE long
+SMTP_LINKAGE size_t
 smtp_strnlen_utf8(const char *s,
                   size_t maxlen){
   size_t i;
-  int utf8_i;
-  int utf8_len;
+  size_t utf8_i;
+  size_t utf8_len;
 
   for(i = 0; *s && i < maxlen; i += utf8_len){
     utf8_len = smtp_utf8_charlen(*s);
-    if(utf8_len < 0){
-      return -1;
+    if(utf8_len == 0){
+      return SIZE_MAX;
     }
 
     for(utf8_i = 0; utf8_i < utf8_len; utf8_i++){
       if(!*s){
-        return -1;
+        return SIZE_MAX;
       }
       s += 1;
     }
@@ -1316,7 +1328,7 @@ smtp_chunk_split(const char *const s,
   size_t chunk_i;
   size_t snew_i;
   size_t body_i;
-  long body_copy_len;
+  size_t body_copy_len;
 
   if(chunklen < 1){
     errno = EINVAL;
@@ -1346,9 +1358,8 @@ smtp_chunk_split(const char *const s,
   snew_i = 0;
   for(chunk_i = 0; chunk_i < bodylen / chunklen + 1; chunk_i++){
     body_copy_len = smtp_strnlen_utf8(&s[body_i], chunklen);
-    if(body_copy_len < 0){
+    if(body_copy_len == SIZE_MAX){
       free(snew);
-      errno = EINVAL;
       return NULL;
     }
     memcpy(&snew[snew_i], &s[body_i], body_copy_len);
@@ -1465,6 +1476,7 @@ smtp_parse_cmd_line(char *const line,
   char *ep;
   char code_str[4];
   size_t line_len;
+  unsigned long int ulcode;
 
   line_len = strlen(line);
   if(line_len < 5){
@@ -1478,10 +1490,14 @@ smtp_parse_cmd_line(char *const line,
 
   memcpy(code_str, line, 3);
   code_str[3] = '\0';
-  cmd->code = strtoul(code_str, &ep, 10);
-  if(*ep != '\0'){
+  ulcode = strtoul(code_str, &ep, 10);
+  if(*ep != '\0' || ulcode > SMTP_BEGIN_MAIL){
     cmd->code = SMTP_INTERNAL_ERROR;
   }
+  else{
+    cmd->code = (enum smtp_result_code)ulcode;
+  }
+
   cmd->more = line[3] == '-' ? 1 : 0;
   return cmd->code;
 }
@@ -1524,7 +1540,7 @@ smtp_puts_dbg(struct smtp *const smtp,
  * Read a server response line.
  *
  * @param[in] smtp SMTP client context.
- * @return @ref str_getdelim_retcode.
+ * @return See @ref str_getdelim_retcode.
  */
 static enum str_getdelim_retcode
 smtp_getline(struct smtp *const smtp){
@@ -1554,7 +1570,7 @@ smtp_getline(struct smtp *const smtp){
  * then return the status code from the last response line.
  *
  * @param[in] smtp SMTP client context.
- * @return @ref smtp_result_code.
+ * @return See @ref smtp_result_code.
  */
 static int
 smtp_read_and_parse_code(struct smtp *const smtp){
@@ -1583,15 +1599,16 @@ smtp_read_and_parse_code(struct smtp *const smtp){
  * @param[in] smtp SMTP client context.
  * @param[in] buf Data to send to the SMTP server.
  * @param[in] len Number of bytes in buf.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 SMTP_LINKAGE enum smtp_status_code
 smtp_write(struct smtp *const smtp,
            const char *const buf,
            size_t len){
   size_t bytes_to_send;
-  int bytes_sent;
+  long bytes_sent;
   const char *buf_offset;
+  int ssl_bytes_to_send;
 
   smtp_puts_dbg(smtp, "Client", buf);
 
@@ -1604,13 +1621,16 @@ smtp_write(struct smtp *const smtp,
 
     if(smtp->tls_on){
 #ifdef SMTP_OPENSSL
-      bytes_sent = SSL_write(smtp->tls, buf_offset, bytes_to_send);
+      /* bytes_to_send <= INT_MAX */
+      ssl_bytes_to_send = (int)bytes_to_send;
+      bytes_sent = SSL_write(smtp->tls, buf_offset, ssl_bytes_to_send);
       if(bytes_sent <= 0){
         return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
       }
 #else /* !(SMTP_OPENSSL) */
       /* unreachable */
       bytes_sent = 0;
+      (void)ssl_bytes_to_send;
 #endif /* SMTP_OPENSSL */
     }
     else{
@@ -1619,7 +1639,7 @@ smtp_write(struct smtp *const smtp,
         return smtp_status_code_set(smtp, SMTP_STATUS_SEND);
       }
     }
-    bytes_to_send -= bytes_sent;
+    bytes_to_send -= (size_t)bytes_sent;
     buf_offset += bytes_sent;
   }
 
@@ -1650,7 +1670,7 @@ smtp_puts(struct smtp *const smtp,
 static enum smtp_status_code
 smtp_puts_terminate(struct smtp *const smtp,
                     const char *const s){
-  int rc;
+  enum smtp_status_code rc;
   char *line;
   char *concat;
   size_t slen;
@@ -1846,15 +1866,13 @@ smtp_tls_init(struct smtp *const smtp,
  * later on when we try to use that extension.
  *
  * @param[in] smtp SMTP client context.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_ehlo(struct smtp *const smtp){
-  if(smtp_puts(smtp, "EHLO smtp\r\n") != SMTP_STATUS_OK){
-    return smtp->status_code;
+  if(smtp_puts(smtp, "EHLO smtp\r\n") == SMTP_STATUS_OK){
+    smtp_read_and_parse_code(smtp);
   }
-
-  smtp_read_and_parse_code(smtp);
   return smtp->status_code;
 }
 
@@ -1865,7 +1883,7 @@ smtp_ehlo(struct smtp *const smtp){
  *      or as shown in the format string: "\0%s\0%s", email, password.
  *   2. Base64 encode the text from (1).
  *   3. Send the constructed auth text from (2) to the server:
- *      "AUTH PLAIN <b64>\r\n".
+ *      "AUTH PLAIN <b64><CR><NL>".
  *
  * @param[in] smtp SMTP client context.
  * @param[in] user SMTP account user name.
@@ -1936,9 +1954,9 @@ smtp_auth_plain(struct smtp *const smtp,
  *
  *   1. Base64 encode the user name.
  *   2. Send string from (1) as part of the login:
- *      "AUTH LOGIN <b64_username>\r\n".
+ *      "AUTH LOGIN <b64_username><CR><NL>".
  *   3. Base64 encode the password and send that by itself on a separate
- *      line: "<b64_password>\r\n".
+ *      line: "<b64_password><CR><NL>".
  *
  * @param[in] smtp SMTP client context.
  * @param[in] user SMTP account user name.
@@ -1957,7 +1975,7 @@ smtp_auth_login(struct smtp *const smtp,
   char *concat;
 
   /* (1) */
-  if((b64_user = smtp_base64_encode(user, -1)) == NULL){
+  if((b64_user = smtp_base64_encode(user, SIZE_MAX)) == NULL){
     return -1;
   }
 
@@ -1984,7 +2002,7 @@ smtp_auth_login(struct smtp *const smtp,
   }
 
   /* (3) */
-  if((b64_pass = smtp_base64_encode(pass, -1)) == NULL){
+  if((b64_pass = smtp_base64_encode(pass, SIZE_MAX)) == NULL){
     return -1;
   }
   smtp_puts_terminate(smtp, b64_pass);
@@ -2003,7 +2021,7 @@ smtp_auth_login(struct smtp *const smtp,
 /**
  * Authenticate using the CRAM-MD5 method.
  *
- *   1. Send "AUTH CRAM-MD5\r\n" to the server.
+ *   1. Send "AUTH CRAM-MD5<CR><NL>" to the server.
  *   2. Decode the base64 challenge response from the server.
  *   3. Do an MD5 HMAC on (2) using the account password as the key.
  *   4. Convert the binary data in (3) to lowercase hex characters.
@@ -2023,7 +2041,7 @@ smtp_auth_cram_md5(struct smtp *const smtp,
                    const char *const pass){
   struct smtp_command cmd;
   unsigned char *challenge_decoded;
-  long challenge_decoded_len;
+  size_t challenge_decoded_len;
   const char *key;
   int key_len;
   unsigned char hmac[EVP_MAX_MD_SIZE];
@@ -2049,18 +2067,22 @@ smtp_auth_cram_md5(struct smtp *const smtp,
   }
 
   /* (2) */
-  challenge_decoded_len = smtp_base64_decode(cmd.text, &challenge_decoded);
-  if(challenge_decoded_len < 0){
+  challenge_decoded_len = smtp_base64_decode(cmd.text,
+                                             &challenge_decoded);
+  if(challenge_decoded_len == SIZE_MAX){
     return -1;
   }
 
   /* (3) */
   key = pass;
-  key_len = strlen(pass);
+  key_len = (int)strlen(pass);/*********************cast*/
   hmac_ret = HMAC(EVP_md5(),
-                  key, key_len,
-                  challenge_decoded, challenge_decoded_len,
-                  hmac, &hmac_len);
+                  key,
+                  key_len,
+                  challenge_decoded,
+                  challenge_decoded_len,
+                  hmac,
+                  &hmac_len);
   free(challenge_decoded);
   if(hmac_ret == NULL){
     return -1;
@@ -2135,9 +2157,9 @@ smtp_set_read_timeout(struct smtp *const smtp,
  * @param[in] smtp                SMTP client context.
  * @param[in] server              Server name or IP address.
  * @param[in] connection_security See @ref smtp_connection_security.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_initiate_handshake(struct smtp *const smtp,
                         const char *const server,
                         enum smtp_connection_security connection_security){
@@ -2220,6 +2242,7 @@ smtp_date_rfc_2822(char *const date){
   struct tm tm_local;
   struct tm tm_utc;
   long offset_utc;
+  double diff_local_utc;
   int rc;
 
   const char weekday_abbreviation[7][4] = {
@@ -2277,7 +2300,8 @@ smtp_date_rfc_2822(char *const date){
    * For example, PST time zone will have an offset of -800 which will get
    * formatted as -0800 in the sprintf call below.
    */
-  offset_utc = difftime(t_local, t_utc);
+  diff_local_utc = difftime(t_local, t_utc);
+  offset_utc = (long)diff_local_utc;
   offset_utc = offset_utc / 60 / 60 * 100;
 
   rc = sprintf(date,
@@ -2322,9 +2346,12 @@ smtp_date_rfc_2822(char *const date){
 static void
 smtp_gen_mime_boundary(char *const boundary){
   size_t i;
+  unsigned int seed;
+
+  seed = (unsigned int)time(NULL);
+  srand(seed);
 
   strcpy(boundary, "mime");
-  srand(time(NULL));
   for(i = 4; i < SMTP_MIME_BOUNDARY_LEN - 1; i++){
     /* Modulo bias okay since we only need to prevent accidental collision. */
     boundary[i] = rand() % 26 + 'A';
@@ -2338,9 +2365,9 @@ smtp_gen_mime_boundary(char *const boundary){
  * @param[in] smtp     SMTP client context.
  * @param[in] boundary MIME boundary text.
  * @param[in] body     Email body text.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_print_mime_header_and_body(struct smtp *const smtp,
                                 const char *const boundary,
                                 const char *const body){
@@ -2402,10 +2429,10 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
  *
  * @param[in] smtp       SMTP client context.
  * @param[in] boundary   MIME boundary text.
- * @param[in] attachment @ref smtp_attachment.
- * @return @ref smtp_status_code.
+ * @param[in] attachment See @ref smtp_attachment.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_print_mime_attachment(struct smtp *const smtp,
                            const char *const boundary,
                            const struct smtp_attachment *const attachment){
@@ -2462,7 +2489,7 @@ smtp_print_mime_attachment(struct smtp *const smtp,
  * @param[in] boundary MIME boundary text.
  * @return See @ref smtp_status_code and @ref smtp_puts.
  */
-static int
+static enum smtp_status_code
 smtp_print_mime_end(struct smtp *const smtp,
                     const char *const boundary){
   char *concat;
@@ -2481,9 +2508,9 @@ smtp_print_mime_end(struct smtp *const smtp,
  *
  * @param[in] smtp SMTP client context.
  * @param[in] body Null-terminated string to send in the email body.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_print_mime_email(struct smtp *const smtp,
                       const char *const body){
   char boundary[SMTP_MIME_BOUNDARY_LEN];
@@ -2517,9 +2544,9 @@ smtp_print_mime_email(struct smtp *const smtp,
  *
  * @param[in] smtp   SMTP client context.
  * @param[in] header See @ref smtp_header.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_print_header(struct smtp *const smtp,
                   const struct smtp_header *const header){
   size_t key_len;
@@ -2562,14 +2589,14 @@ smtp_print_header(struct smtp *const smtp,
  *
  * The following example shows what the final header might look like when
  * the client sends an email to two CC addresses:
- * Cc: mail1@example.com, mail2@example.com
+ * Cc: mail1\@example.com, mail2\@example.com
  *
  * @param[in] smtp         SMTP client context.
- * @param[in] address_type @ref smtp_address_type.
+ * @param[in] address_type See @ref smtp_address_type.
  * @param[in] key          Header key value, for example, To From Cc.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_append_address_to_header(struct smtp *const smtp,
                               enum smtp_address_type address_type,
                               const char *const key){
@@ -2624,7 +2651,7 @@ smtp_append_address_to_header(struct smtp *const smtp,
       concat = smtp_stpcpy(concat, address->email);
       concat = smtp_stpcpy(concat, ">");
       num_address_in_header += 1;
-      concat_len = concat - header_value;
+      concat_len = (size_t)(concat - header_value);
     }
   }
 
@@ -2639,15 +2666,15 @@ smtp_append_address_to_header(struct smtp *const smtp,
  * Send envelope MAIL FROM or RCPT TO header address.
  *
  * Examples:
- * MAIL FROM:<mail@example.com>
- * RCPT TO:<mail@example.com>
+ * MAIL FROM:<mail\@example.com>
+ * RCPT TO:<mail\@example.com>
  *
  * @param[in] smtp    SMTP client context.
  * @param[in] header  Either "MAIL FROM" or "RCPT TO".
- * @param[in] address @ref smtp_address -> email field.
- * @return @ref smtp_status_code.
+ * @param[in] address See @ref smtp_address -> email field.
+ * @return See @ref smtp_status_code.
  */
-static int
+static enum smtp_status_code
 smtp_mail_envelope_header(struct smtp *const smtp,
                           const char *const header,
                           const struct smtp_address *const address){
@@ -2760,7 +2787,7 @@ smtp_header_exists(const struct smtp *const smtp,
  */
 SMTP_LINKAGE int
 smtp_header_key_validate(const char *const key){
-  unsigned c;
+  unsigned char uc;
   size_t i;
   size_t keylen;
 
@@ -2770,8 +2797,8 @@ smtp_header_key_validate(const char *const key){
   }
 
   for(i = 0; i < keylen; i++){
-    c = key[i];
-    if(c <= ' ' || c > 126 || c == ':'){
+    uc = (unsigned char)key[i];
+    if(uc <= ' ' || uc > 126 || uc == ':'){
       return -1;
     }
   }
@@ -2791,13 +2818,13 @@ smtp_header_key_validate(const char *const key){
 SMTP_LINKAGE int
 smtp_header_value_validate(const char *const value){
   size_t i;
-  unsigned char c;
+  unsigned char uc;
 
   for(i = 0; value[i]; i++){
-    c = value[i];
-    if((c < ' ' || c > 126) &&
-        c != '\t' &&
-        c < 0x80){ /* Allow UTF-8 byte sequence. */
+    uc = (unsigned char)value[i];
+    if((uc < ' ' || uc > 126) &&
+        uc != '\t' &&
+        uc < 0x80){ /* Allow UTF-8 byte sequence. */
       return -1;
     }
   }
@@ -2817,12 +2844,12 @@ smtp_header_value_validate(const char *const value){
 SMTP_LINKAGE int
 smtp_address_validate_email(const char *const email){
   size_t i;
-  unsigned char c;
+  unsigned char uc;
 
   for(i = 0; email[i]; i++){
-    c = email[i];
-    if(c <= ' ' || c == 127 ||
-       c == '<' || c == '>'){
+    uc = (unsigned char)email[i];
+    if(uc <= ' ' || uc == 127 ||
+       uc == '<' || uc == '>'){
       return -1;
     }
   }
@@ -2842,11 +2869,11 @@ smtp_address_validate_email(const char *const email){
 SMTP_LINKAGE int
 smtp_address_validate_name(const char *const name){
   size_t i;
-  unsigned char c;
+  unsigned char uc;
 
   for(i = 0; name[i]; i++){
-    c = name[i];
-    if(c < ' ' || c == 127 || c == '\"'){
+    uc = (unsigned char)name[i];
+    if(uc < ' ' || uc == 127 || uc == '\"'){
       return -1;
     }
   }
@@ -2866,12 +2893,12 @@ smtp_address_validate_name(const char *const name){
 SMTP_LINKAGE int
 smtp_attachment_validate_name(const char *const name){
   size_t i;
-  unsigned c;
+  unsigned char uc;
 
   for(i = 0; name[i]; i++){
-    c = name[i];
-    if(c < ' ' || c == 127 ||
-       c == '\'' || c == '\"'){
+    uc = (unsigned char)name[i];
+    if(uc < ' ' || uc == 127 ||
+       uc == '\'' || uc == '\"'){
       return -1;
     }
   }
@@ -2890,18 +2917,20 @@ smtp_attachment_validate_name(const char *const name){
  * error codes when calling the other header functions because the
  * caller will always get a valid SMTP structure returned.
  */
-static struct smtp smtp_error = {
+static struct smtp
+g_smtp_error = {
   SMTP_FLAG_INVALID_MEMORY, /* flags                        */
   0,                        /* sock                         */
   {                         /* gdfd                         */
     NULL,                   /* _buf                         */
     0,                      /* _bufsz                       */
     0,                      /* _buf_len                     */
-    0,                      /* delim                        */
     NULL,                   /* line                         */
     0,                      /* line_len                     */
     NULL,                   /* getdelimfd_read              */
-    NULL                    /* user_data                    */
+    NULL,                   /* user_data                    */
+    0,                      /* delim                        */
+    {0}                     /* pad                          */
   },                        /* gdfd                         */
   NULL,                     /* header_list                  */
   0,                        /* num_headers                  */
@@ -2909,8 +2938,8 @@ static struct smtp smtp_error = {
   0,                        /* num_address                  */
   NULL,                     /* attachment_list              */
   0,                        /* num_attachment               */
-  SMTP_STATUS_NOMEM,        /* smtp_status_code status_code */
   0,                        /* timeout_sec                  */
+  SMTP_STATUS_NOMEM,        /* smtp_status_code status_code */
   0,                        /* tls_on                       */
   NULL                      /* cafile                       */
 #ifdef SMTP_OPENSSL
@@ -2950,7 +2979,7 @@ static struct smtp smtp_error = {
  *                                 allocation fails. When finished, the caller
  *                                 must free this context using
  *                                 @ref smtp_close.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_open(const char *const server,
@@ -2962,7 +2991,7 @@ smtp_open(const char *const server,
   struct smtp *snew;
 
   if((snew = calloc(1, sizeof(**smtp))) == NULL){
-    *smtp = &smtp_error;
+    *smtp = &g_smtp_error;
     return smtp_status_code_get(*smtp);
   }
   *smtp = snew;
@@ -2999,7 +3028,7 @@ smtp_open(const char *const server,
  * @param[in] auth_method See @ref smtp_authentication_method.
  * @param[in] user        Server authentication user name.
  * @param[in] pass        Server authentication user password.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_auth(struct smtp *const smtp,
@@ -3012,25 +3041,22 @@ smtp_auth(struct smtp *const smtp,
     return smtp->status_code;
   }
 
-  switch(auth_method){
-    case SMTP_AUTH_PLAIN:
-      auth_rc = smtp_auth_plain(smtp, user, pass);
-      break;
-    case SMTP_AUTH_LOGIN:
-      auth_rc = smtp_auth_login(smtp, user, pass);
-      break;
-
+  if(auth_method == SMTP_AUTH_PLAIN){
+    auth_rc = smtp_auth_plain(smtp, user, pass);
+  }
+  else if(auth_method == SMTP_AUTH_LOGIN){
+    auth_rc = smtp_auth_login(smtp, user, pass);
+  }
 #ifdef SMTP_OPENSSL
-    case SMTP_AUTH_CRAM_MD5:
-      auth_rc = smtp_auth_cram_md5(smtp, user, pass);
-      break;
+  else if(auth_method == SMTP_AUTH_CRAM_MD5){
+    auth_rc = smtp_auth_cram_md5(smtp, user, pass);
+  }
 #endif /* SMTP_OPENSSL */
-
-    case SMTP_AUTH_NONE:
-      auth_rc = 0;
-      break;
-    default:
-      return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
+  else if(auth_method == SMTP_AUTH_NONE){
+    auth_rc = 0;
+  }
+  else{
+    return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
   }
 
   if(auth_rc < 0){
@@ -3049,7 +3075,7 @@ smtp_auth(struct smtp *const smtp,
  *
  * @param[in] smtp SMTP client context.
  * @param[in] body Null-terminated string to send in the email body.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_mail(struct smtp *const smtp,
@@ -3162,7 +3188,7 @@ smtp_mail(struct smtp *const smtp,
  * SMTP context.
  *
  * @param[in] smtp SMTP client context.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_close(struct smtp *smtp){
@@ -3217,7 +3243,7 @@ smtp_close(struct smtp *smtp){
  * Get the current status/error code described in @ref smtp_status_code.
  *
  * @param[in] smtp SMTP client context.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_status_code_get(const struct smtp *const smtp){
@@ -3235,7 +3261,7 @@ smtp_status_code_get(const struct smtp *const smtp){
  *
  * @param[in] smtp        SMTP client context.
  * @param[in] status_code See @ref smtp_status_code.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_status_code_set(struct smtp *const smtp,
@@ -3303,7 +3329,7 @@ smtp_status_code_errstr(enum smtp_status_code status_code){
  * @param[in] value Value for new header. It must consist only of printable
  *                  US-ASCII, space, or horizontal tab. If set to NULL,
  *                  this will prevent the header from printing out.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_header_add(struct smtp *const smtp,
@@ -3387,7 +3413,7 @@ void smtp_header_clear_all(struct smtp *const smtp){
  *                  printable characters, excluding the quote characters. If
  *                  set to NULL or empty string, no name will get associated
  *                  with this email.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_address_add(struct smtp *const smtp,
@@ -3465,7 +3491,7 @@ void smtp_address_clear_all(struct smtp *const smtp){
  * @param[in] smtp SMTP client context.
  * @param[in] name Filename of the attachment shown to recipients.
  * @param[in] path Path of file location to read from.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_attachment_add_path(struct smtp *const smtp,
@@ -3498,7 +3524,7 @@ smtp_attachment_add_path(struct smtp *const smtp,
  * @param[in] smtp SMTP client context.
  * @param[in] name Filename of the attachment shown to recipients.
  * @param[in] fp   File pointer already opened by the caller.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_attachment_add_fp(struct smtp *const smtp,
@@ -3537,13 +3563,13 @@ smtp_attachment_add_fp(struct smtp *const smtp,
  * @param[in] data   Raw attachment data stored in memory.
  * @param[in] datasz Number of bytes in @p data, or -1 if data
  *                   null-terminated.
- * @return @ref smtp_status_code.
+ * @return See @ref smtp_status_code.
  */
 enum smtp_status_code
 smtp_attachment_add_mem(struct smtp *const smtp,
                         const char *const name,
                         const void *const data,
-                        long datasz){
+                        size_t datasz){
   size_t num_attachment_inc;
   struct smtp_attachment *new_attachment_list;
   struct smtp_attachment *new_attachment;
@@ -3557,7 +3583,7 @@ smtp_attachment_add_mem(struct smtp *const smtp,
     return smtp_status_code_set(smtp, SMTP_STATUS_PARAM);
   }
 
-  if(datasz < 0){
+  if(datasz == SIZE_MAX){
     datasz = strlen(data);
   }
 

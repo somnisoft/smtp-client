@@ -17,8 +17,6 @@
 BDIR = build
 INSTALL_PREFIX = /usr/local
 
-SILENT = @
-
 CWARN += -Waggregate-return
 CWARN += -Wall
 CWARN += -Wbad-function-cast
@@ -42,6 +40,7 @@ CWARN += -Wmissing-declarations
 CWARN += -Wmissing-include-dirs
 CWARN += -Wmissing-prototypes
 CWARN += -Wnested-externs
+CWARN += -Wnull-dereference
 CWARN += -Wold-style-definition
 CWARN += -Wpacked
 CWARN += -Wpedantic
@@ -50,6 +49,7 @@ CWARN += -Wredundant-decls
 CWARN += -Wshadow
 CWARN += -Wstack-protector
 CWARN += -Wstrict-aliasing
+CWARN += -Wstrict-overflow=5
 CWARN += -Wstrict-prototypes
 CWARN += -Wswitch-default
 CWARN += -Wswitch-enum
@@ -61,17 +61,24 @@ CWARN += -Wvla
 CWARN += -Wwrite-strings
 
 CWARN.gcc += -Wno-aggressive-loop-optimizations
+CWARN.gcc += -Wduplicated-branches
+CWARN.gcc += -Wduplicated-cond
 CWARN.gcc += -Wjump-misses-init
 CWARN.gcc += -Wlogical-op
 CWARN.gcc += -Wnormalized=nfkc
+CWARN.gcc += -Wrestrict
 CWARN.gcc += -Wstack-usage=5000
+CWARN.gcc += -Wshift-overflow=2
 CWARN.gcc += -Wsync-nand
+CWARN.gcc += -Wstringop-overflow=4
 CWARN.gcc += -Wtrampolines
-CWARN.gcc += -Wunsafe-loop-optimizations
+##CWARN.gcc += -Wunsafe-loop-optimizations
 CWARN.gcc += -Wunsuffixed-float-constants
 CWARN.gcc += -Wvector-operation-performance
 
+CWARN.clang += -Weverything
 CWARN.clang += -Wno-format-nonliteral
+CWARN.clang += -fcomment-block-commands=retval
 
 CFLAGS += $(CWARN)
 CFLAGS += -fstack-protector-all
@@ -85,6 +92,7 @@ CFLAGS.debug   += -g3
 CFLAGS.debug   += -DSMTP_TEST
 CFLAGS.debug   += -Wno-missing-prototypes
 CFLAGS.debug   += -fprofile-arcs -ftest-coverage
+CFLAGS.debug += -ftrapv
 
 CFLAGS.clang   += -fsanitize=undefined
 
@@ -100,6 +108,8 @@ CPPFLAGS.release = $(CPPFLAGS)
 CFLAGS.gcc.debug     += $(CFLAGS.debug) $(CWARN.gcc)
 CFLAGS.gcc.release   += $(CFLAGS.release) $(CWARN.gcc)
 CFLAGS.clang.debug   += $(CFLAGS.debug) $(CFLAGS.clang) $(CWARN.clang)
+
+CDEF_POSIX = -D_POSIX_C_SOURCE=200112
 
 SCAN_BUILD = $(SILENT) scan-build -maxloop 100          \
                                   -o $(BDIR)/scan-build \
@@ -242,13 +252,13 @@ $(BDIR)/release/test_cpp_wrapper.o: test/test_cpp_wrapper.cpp | $(BDIR)/release
 	$(COMPILE.cpp.release) -Isrc
 
 $(BDIR)/debug/smtp.o: src/smtp.c | $(BDIR)/debug
-	$(COMPILE.c.debug)
+	$(COMPILE.c.debug) $(CDEF_POSIX)
 
 $(BDIR)/release/smtp_nossl.o: src/smtp.c | $(BDIR)/release
-	$(COMPILE.c.release) -USMTP_OPENSSL
+	$(COMPILE.c.release) $(CDEF_POSIX) -USMTP_OPENSSL
 
 $(BDIR)/release/smtp.o: src/smtp.c | $(BDIR)/release
-	$(COMPILE.c.release)
+	$(COMPILE.c.release) $(CDEF_POSIX)
 
 $(BDIR)/debug/test: $(BDIR)/debug/seams.o \
                     $(BDIR)/debug/smtp.o  \
@@ -256,10 +266,10 @@ $(BDIR)/debug/test: $(BDIR)/debug/seams.o \
 	$(LINK.c.debug) -lssl -lcrypto -lgcov
 
 $(BDIR)/debug/test.o: test/test.c | $(BDIR)/debug
-	$(COMPILE.c.debug) -Isrc/
+	$(COMPILE.c.debug) $(CDEF_POSIX) -Isrc/
 
 $(BDIR)/debug/seams.o: test/seams.c | $(BDIR)/debug
-	$(COMPILE.c.debug)
+	$(COMPILE.c.debug) $(CDEF_POSIX)
 
 $(BDIR)/debug/clang_test: $(BDIR)/debug/clang_seams.o \
                           $(BDIR)/debug/clang_smtp.o  \
@@ -267,13 +277,13 @@ $(BDIR)/debug/clang_test: $(BDIR)/debug/clang_seams.o \
 	$(LINK.c.clang) -lssl -lcrypto -lgcov -lubsan
 
 $(BDIR)/debug/clang_seams.o: test/seams.c | $(BDIR)/debug
-	$(COMPILE.c.clang)
+	$(COMPILE.c.clang) $(CDEF_POSIX)
 
 $(BDIR)/debug/clang_smtp.o: src/smtp.c | $(BDIR)/debug
-	$(COMPILE.c.clang)
+	$(COMPILE.c.clang) $(CDEF_POSIX)
 
 $(BDIR)/debug/clang_test.o: test/test.c | $(BDIR)/debug
-	$(COMPILE.c.clang) -Isrc/
+	$(COMPILE.c.clang) $(CDEF_POSIX) -Isrc/
 
 $(BDIR)/release/test_nossl: $(BDIR)/release/smtp_nossl.o \
                             $(BDIR)/release/test_nossl.o
