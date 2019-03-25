@@ -2950,37 +2950,6 @@ g_smtp_error = {
 #endif /* SMTP_OPENSSL */
 };
 
-
-/**
- * Open a connection to an SMTP server and return the context.
- *
- * After successfully connecting and performing a handshake with the
- * SMTP server, this function will return an SMTP client context which
- * the calling program can use in the other API function calls. The
- * caller must always use this function prior to any other smtp-client
- * library function.
- *
- * This function always returns a valid SMTP client context even if
- * the server connection or memory allocation fails. However, the error
- * status will continue to propagate to any further function calls for
- * the SMTP context while in this failure mode.
- *
- * This function will ignore the SIGPIPE signal. Applications that require a
- * handler for that signal should set it up after calling this function.
- *
- * @param[in]  server              Server name or IP address.
- * @param[in]  port                Server port number.
- * @param[in]  connection_security See @ref smtp_connection_security.
- * @param[in]  flags               See @ref smtp_flag.
- * @param[in]  cafile              Path to certificate file, or NULL to use
- *                                 certificates in the default path.
- * @param[out] smtp                Pointer to a new SMTP context which will
- *                                 always have a valid state even if memory
- *                                 allocation fails. When finished, the caller
- *                                 must free this context using
- *                                 @ref smtp_close.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_open(const char *const server,
           const char *const port,
@@ -3020,16 +2989,6 @@ smtp_open(const char *const server,
   return snew->status_code;
 }
 
-/**
- * Authenticate the user using one of the methods listed in
- * @ref smtp_authentication_method.
- *
- * @param[in] smtp        SMTP client context.
- * @param[in] auth_method See @ref smtp_authentication_method.
- * @param[in] user        Server authentication user name.
- * @param[in] pass        Server authentication user password.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_auth(struct smtp *const smtp,
           enum smtp_authentication_method auth_method,
@@ -3066,17 +3025,6 @@ smtp_auth(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Sends an email using the addresses, attachments, and headers defined
- * in the current SMTP context.
- *
- * The caller must use the smtp_open function prior to this function. The
- * 'Date' header also gets generated here if it hasn't already been provided.
- *
- * @param[in] smtp SMTP client context.
- * @param[in] body Null-terminated string to send in the email body.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_mail(struct smtp *const smtp,
           const char *const body){
@@ -3183,13 +3131,6 @@ smtp_mail(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Close the SMTP connection and frees all resources held by the
- * SMTP context.
- *
- * @param[in] smtp SMTP client context.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_close(struct smtp *smtp){
   enum smtp_status_code status_code;
@@ -3239,30 +3180,11 @@ smtp_close(struct smtp *smtp){
   return status_code;
 }
 
-/**
- * Get the current status/error code described in @ref smtp_status_code.
- *
- * @param[in] smtp SMTP client context.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_status_code_get(const struct smtp *const smtp){
   return smtp->status_code;
 }
 
-/**
- * Set the error status of the SMTP client context and return the same code.
- *
- * This function allows the caller to clear an error status to SMTP_STATUS_OK
- * so that previous errors will stop propagating. However, this will only
- * work correctly for clearing the SMTP_STATUS_PARAM and SMTP_STATUS_FILE
- * errors. Clearing the status from any other error code will invoke
- * undefined behavior and will almost never work correctly.
- *
- * @param[in] smtp        SMTP client context.
- * @param[in] status_code See @ref smtp_status_code.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_status_code_set(struct smtp *const smtp,
                      enum smtp_status_code status_code){
@@ -3273,14 +3195,6 @@ smtp_status_code_set(struct smtp *const smtp,
   return status_code;
 }
 
-/**
- * Convert a standard smtp-client return code to a description.
- *
- * @param[in] status_code Status code returned from one of the other
- *                        smtp-client library functions.
- * @return String containing a description of the @p status_code. The caller
- *         must not free or modify this string.
- */
 const char *
 smtp_status_code_errstr(enum smtp_status_code status_code){
   const char *const status_code_err_str[] = {
@@ -3318,19 +3232,6 @@ smtp_status_code_errstr(enum smtp_status_code status_code){
   return status_code_err_str[status_code];
 }
 
-/**
- * Add a key/value header to the header list in the SMTP context.
- *
- * This will insert instead of replacing an existing header with the same key.
- *
- * @param[in] smtp  SMTP client context.
- * @param[in] key   Key name for new header. It must consist only of
- *                  printable US-ASCII characters except colon.
- * @param[in] value Value for new header. It must consist only of printable
- *                  US-ASCII, space, or horizontal tab. If set to NULL,
- *                  this will prevent the header from printing out.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_header_add(struct smtp *const smtp,
                 const char *const key,
@@ -3380,12 +3281,8 @@ smtp_header_add(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Free all memory related to email headers.
- *
- * @param[in] smtp SMTP client context.
- */
-void smtp_header_clear_all(struct smtp *const smtp){
+void
+smtp_header_clear_all(struct smtp *const smtp){
   size_t i;
   struct smtp_header *header;
 
@@ -3399,22 +3296,6 @@ void smtp_header_clear_all(struct smtp *const smtp){
   smtp->num_headers = 0;
 }
 
-/**
- * Add a FROM, TO, CC, or BCC address destination to this SMTP context.
- *
- * @note Some SMTP servers may reject over 100 recipients.
- *
- * @param[in] smtp  SMTP client context.
- * @param[in] type  See @ref smtp_address_type.
- * @param[in] email The email address of the party. Must consist only of
- *                  printable characters excluding the angle brackets
- *                  (<) and (>).
- * @param[in] name  Name or description of the party. Must consist only of
- *                  printable characters, excluding the quote characters. If
- *                  set to NULL or empty string, no name will get associated
- *                  with this email.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_address_add(struct smtp *const smtp,
                  enum smtp_address_type type,
@@ -3464,12 +3345,8 @@ smtp_address_add(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Free all memory related to the address list.
- *
- * @param[in] smtp SMTP client context.
- */
-void smtp_address_clear_all(struct smtp *const smtp){
+void
+smtp_address_clear_all(struct smtp *const smtp){
   size_t i;
   struct smtp_address *address;
 
@@ -3483,16 +3360,6 @@ void smtp_address_clear_all(struct smtp *const smtp){
   smtp->num_address = 0;
 }
 
-/**
- * Add a file attachment from a path.
- *
- * See @ref smtp_attachment_add_mem for more details.
- *
- * @param[in] smtp SMTP client context.
- * @param[in] name Filename of the attachment shown to recipients.
- * @param[in] path Path of file location to read from.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_attachment_add_path(struct smtp *const smtp,
                          const char *const name,
@@ -3516,16 +3383,6 @@ smtp_attachment_add_path(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Add an attachment using a file pointer.
- *
- * See @ref smtp_attachment_add_mem for more details.
- *
- * @param[in] smtp SMTP client context.
- * @param[in] name Filename of the attachment shown to recipients.
- * @param[in] fp   File pointer already opened by the caller.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_attachment_add_fp(struct smtp *const smtp,
                        const char *const name,
@@ -3549,22 +3406,6 @@ smtp_attachment_add_fp(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Add a MIME attachment to this SMTP context with the data retrieved
- * from memory.
- *
- * The attachment data will get base64 encoded before sending to the server.
- *
- * @param[in] smtp   SMTP client context.
- * @param[in] name   Filename of the attachment shown to recipients. Must
- *                   consist only of printable characters excluding the
- *                   quote characters (') and ("), or the space character
- *                   ( ).
- * @param[in] data   Raw attachment data stored in memory.
- * @param[in] datasz Number of bytes in @p data, or -1 if data
- *                   null-terminated.
- * @return See @ref smtp_status_code.
- */
 enum smtp_status_code
 smtp_attachment_add_mem(struct smtp *const smtp,
                         const char *const name,
@@ -3618,12 +3459,8 @@ smtp_attachment_add_mem(struct smtp *const smtp,
   return smtp->status_code;
 }
 
-/**
- * Remove all attachments from the SMTP client context.
- *
- * @param[in] smtp SMTP client context.
- */
-void smtp_attachment_clear_all(struct smtp *const smtp){
+void
+smtp_attachment_clear_all(struct smtp *const smtp){
   size_t i;
   struct smtp_attachment *attachment;
 
