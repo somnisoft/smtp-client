@@ -3766,7 +3766,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
 
 
   /* Invalid SMTP status code. */
-  smtp_status_code_clear(config->smtp);
+  smtp_status_code_set(config->smtp, SMTP_STATUS_PARAM);
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
                                "test",
@@ -3834,7 +3834,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   g_smtp_test_err_calloc_ctr = -1;
 
   /* Invalid SMTP status code. */
-  smtp_status_code_clear(config->smtp);
+  smtp_status_code_set(config->smtp, SMTP_STATUS_PARAM);
   rc = smtp_attachment_add_fp(config->smtp, "test", stdin);
   assert(rc == SMTP_STATUS_PARAM);
 
@@ -3971,6 +3971,9 @@ test_failure_status_code_set(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_PARAM);
 
   rc = smtp_status_code_clear(config->smtp);
+  assert(rc == SMTP_STATUS_PARAM);
+
+  rc = smtp_status_code_get(config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_close(config->smtp);
