@@ -144,8 +144,6 @@ LINK.c.debug        = $(SILENT) $(CC) $(CFLAGS.gcc.debug) -o $@ $^
 LINK.c.release      = $(SILENT) $(CC) $(CFLAGS.gcc.release) -o $@ $^
 LINK.c.clang        = $(SILENT) $(CC.clang) $(CFLAGS.clang.debug) -o $@ $^
 LINK.cpp.release    = $(SILENT) $(CPP) $(CPPFLAGS.release) -o $@ $^
-INKSCAPE            = $(SILENT) inkscape
-MOGRIFY             = $(SILENT) mogrify
 MKDIR               = $(SILENT) mkdir -p $@
 CP                  = $(SILENT) cp $< $@
 
@@ -159,8 +157,7 @@ all: $(BDIR)/debug/libsmtp.a          \
      $(BDIR)/doc/html/index.html      \
      $(BDIR)/debug/test               \
      $(BDIR)/debug/clang_test         \
-     $(BDIR)/release/test_nossl       \
-     $(BDIR)/www/images/logo.png
+     $(BDIR)/release/test_nossl
 
 clean:
 	$(SILENT) rm -rf $(BDIR)
@@ -291,13 +288,6 @@ $(BDIR)/release/test_nossl: $(BDIR)/release/smtp_nossl.o \
 
 $(BDIR)/release/test_nossl.o: test/test_nossl.c | $(BDIR)/release
 	$(COMPILE.c.release) -Isrc/ -USMTP_OPENSSL
-
-$(BDIR)/www/images/logo.png: www/images/logo.svg | $(BDIR)/www/images
-	$(INKSCAPE) -e $@ -w 71 -h 62 $< > /dev/null
-	$(MOGRIFY) -strip $@
-
-$(BDIR)/www/images:
-	$(MKDIR)
 
 release: $(BDIR)/smtp-client.tar.gz \
          $(BDIR)/smtp-client.zip
