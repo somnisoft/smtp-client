@@ -78,6 +78,7 @@ CWARN.gcc += -Wvector-operation-performance
 
 CWARN.clang += -Weverything
 CWARN.clang += -Wno-format-nonliteral
+CWARN.clang += -Wno-documentation-deprecated-sync
 CWARN.clang += -fcomment-block-commands=retval
 
 CFLAGS += $(CWARN)

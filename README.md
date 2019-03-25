@@ -118,9 +118,7 @@ example, the program checks for an error at the end of the mail session after
 calling smtp_close. We can do this because if an error occurs in any of the
 prior functions, the error will continue to propagate through any future
 function calls until either closing the SMTP context using smtp_close or by
-resetting the error condition using smtp_status_code_set. However, make sure to
-review the smtp_status_code_set function prior to using that option for
-clearing the error message to avoid any undefined behavior.
+resetting the error condition using smtp_status_code_clear.
 
 ## Technical Documentation
 See the [Technical Documentation](https://www.somnisoft.com/smtp-client/technical-documentation/index.html) generated from Doxygen.

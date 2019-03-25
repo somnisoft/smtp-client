@@ -2220,7 +2220,7 @@ smtp_func_test_all_status_code_get(struct smtp_test_config *const config){
   smtp_status_code_set(config->smtp, SMTP_STATUS_NOMEM);
   rc = smtp_status_code_get(config->smtp);
   assert(rc == SMTP_STATUS_NOMEM);
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
 
   rc = smtp_close(config->smtp);
   assert(rc == SMTP_STATUS_OK);
@@ -2840,7 +2840,7 @@ smtp_func_test_all_address(struct smtp_test_config *const config){
   rc = smtp_mail(config->smtp,
                  "This email should not have a FROM address in the header.");
   assert(rc == SMTP_STATUS_PARAM);
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
 
   /* FROM address contains UTF-8 characters. */
   smtp_header_clear_all(config->smtp);
@@ -3685,7 +3685,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Invalid email address. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         "<invalid>",
@@ -3693,7 +3693,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_PARAM);
 
   /* Invalid email name. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
                         config->email_from,
@@ -3701,7 +3701,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_PARAM);
 
   /* Wrap when trying to increase size of address list. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_si_add_size_t_ctr = 0;
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
@@ -3711,7 +3711,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Memory allocation failed while trying to increase size of address list. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_realloc_ctr = 0;
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
@@ -3721,7 +3721,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Failed to duplicate email string. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_malloc_ctr = 0;
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
@@ -3731,7 +3731,7 @@ test_failure_address_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Failed to duplicate name string. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_malloc_ctr = 1;
   rc = smtp_address_add(config->smtp,
                         SMTP_ADDRESS_FROM,
@@ -3766,7 +3766,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
 
 
   /* Invalid SMTP status code. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_PARAM);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
                                "test",
@@ -3775,7 +3775,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
 
 
   /* Invalid filename parameter. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_attachment_add_mem(config->smtp,
                                "\"invalid\"",
                                "test",
@@ -3783,7 +3783,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_PARAM);
 
   /* Wrap when increasing the attachment list size. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_si_add_size_t_ctr = 0;
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
@@ -3793,7 +3793,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   g_smtp_test_err_si_add_size_t_ctr = -1;
 
   /* Memory allocation failure while increasing the attachment list size. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_realloc_ctr = 0;
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
@@ -3803,7 +3803,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   g_smtp_test_err_realloc_ctr = -1;
 
   /* Memory allocation failure while using smtp_strdup on file name. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_malloc_ctr = 0;
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
@@ -3814,7 +3814,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
 
 
   /* Memory allocation failure while using smtp_base64_encode. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_calloc_ctr = 0;
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
@@ -3824,7 +3824,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   g_smtp_test_err_calloc_ctr = -1;
 
   /* Memory allocation failure when splitting base64 lines into chunks. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_calloc_ctr = 1;
   rc = smtp_attachment_add_mem(config->smtp,
                                "valid",
@@ -3834,19 +3834,19 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   g_smtp_test_err_calloc_ctr = -1;
 
   /* Invalid SMTP status code. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_PARAM);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_attachment_add_fp(config->smtp, "test", stdin);
   assert(rc == SMTP_STATUS_PARAM);
 
   /* @ref smtp_ffile_get_contents memory allocation failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_realloc_ctr = 0;
   rc = smtp_attachment_add_fp(config->smtp, "test", stdin);
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* @ref smtp_ffile_get_contents fread error. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   fp = fopen("COPYING", "r");
   assert(fp);
   g_smtp_test_err_ferror_ctr = 0;
@@ -3857,7 +3857,7 @@ test_failure_attachment_add(struct smtp_test_config *const config){
   assert(fp_rc == 0);
 
   /* @ref smtp_file_get_contents memory allocation failure. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_realloc_ctr = 0;
   rc = smtp_attachment_add_path(config->smtp, "test", "COPYING");
   g_smtp_test_err_realloc_ctr = -1;
@@ -3898,35 +3898,35 @@ test_failure_header_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Invalid header key. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "invalid:",
                        "value");
   assert(rc == SMTP_STATUS_PARAM);
 
   /* Invalid header value. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   rc = smtp_header_add(config->smtp,
                        "key",
                        "invalid\n");
   assert(rc == SMTP_STATUS_PARAM);
 
   /* Wrap when increasing the header list size. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_si_add_size_t_ctr = 0;
   rc = smtp_header_add(config->smtp, "key", "value");
   g_smtp_test_err_si_add_size_t_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Memory allocation failure while trying to increase header list size. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_realloc_ctr = 0;
   rc = smtp_header_add(config->smtp, "key", "value");
   g_smtp_test_err_realloc_ctr = -1;
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Failed to strdup header key. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_malloc_ctr = 0;
   rc = smtp_header_add(config->smtp,
                        "key",
@@ -3935,7 +3935,7 @@ test_failure_header_add(struct smtp_test_config *const config){
   assert(rc == SMTP_STATUS_NOMEM);
 
   /* Failed to strdup header value. */
-  smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  smtp_status_code_clear(config->smtp);
   g_smtp_test_err_malloc_ctr = 1;
   rc = smtp_header_add(config->smtp,
                        "key",
@@ -3970,7 +3970,7 @@ test_failure_status_code_set(struct smtp_test_config *const config){
   rc = smtp_status_code_set(config->smtp, SMTP_STATUS__LAST);
   assert(rc == SMTP_STATUS_PARAM);
 
-  rc = smtp_status_code_set(config->smtp, SMTP_STATUS_OK);
+  rc = smtp_status_code_clear(config->smtp);
   assert(rc == SMTP_STATUS_OK);
 
   rc = smtp_close(config->smtp);

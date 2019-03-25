@@ -3186,6 +3186,15 @@ smtp_status_code_get(const struct smtp *const smtp){
 }
 
 enum smtp_status_code
+smtp_status_code_clear(struct smtp *const smtp){
+  enum smtp_status_code old_status;
+
+  old_status = smtp_status_code_get(smtp);
+  smtp_status_code_set(smtp, SMTP_STATUS_OK);
+  return old_status;
+}
+
+enum smtp_status_code
 smtp_status_code_set(struct smtp *const smtp,
                      enum smtp_status_code status_code){
   if((unsigned)status_code >= SMTP_STATUS__LAST){
