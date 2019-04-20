@@ -1498,7 +1498,12 @@ smtp_parse_cmd_line(char *const line,
     cmd->code = (enum smtp_result_code)ulcode;
   }
 
-  cmd->more = line[3] == '-' ? 1 : 0;
+  if(line[3] == '-'){
+    cmd->more = 1;
+  }
+  else{
+    cmd->more = 0;
+  }
   return cmd->code;
 }
 
@@ -3307,7 +3312,12 @@ smtp_header_add(struct smtp *const smtp,
   new_header = &smtp->header_list[smtp->num_headers];
 
   new_header->key = smtp_strdup(key);
-  new_header->value = value ? smtp_strdup(value) : NULL;
+  if(value){
+    new_header->value = smtp_strdup(value);
+  }
+  else{
+    new_header->value = NULL;
+  }
   if(new_header->key == NULL ||
      (new_header->value == NULL && value)){
     free(new_header->key);
@@ -3377,7 +3387,12 @@ smtp_address_add(struct smtp *const smtp,
 
   new_address->type = type;
   new_address->email = smtp_strdup(email);
-  new_address->name = name ? smtp_strdup(name) : NULL;
+  if(name){
+    new_address->name = smtp_strdup(name);
+  }
+  else{
+    new_address->name = NULL;
+  }
   if(new_address->email == NULL ||
      (new_address->name == NULL && name)){
     free(new_address->email);
