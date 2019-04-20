@@ -11,7 +11,7 @@
 ##
 ## This software has been placed into the public domain using CC0.
 ##
-.PHONY: all clean doc install release test test_unit
+.PHONY: all clean doc gcov install release test test_unit
 .SUFFIXES:
 
 BDIR = build
@@ -130,6 +130,8 @@ VFLAGS_MEMCHECK += --leak-resolution=high
 VFLAGS_MEMCHECK += --suppressions=test/valgrind-suppressions.txt
 VALGRIND_MEMCHECK = $(SILENT) valgrind $(VFLAGS) $(VFLAGS_MEMCHECK)
 
+GCOV = gcov -b $(BDIR)/debug/smtp.o
+
 CC  = gcc
 CPP = g++
 
@@ -179,6 +181,9 @@ doc $(BDIR)/doc/html/index.html: src/mailx.c               \
                                  doc.cfg | $(BDIR)/doc
 	$(SILENT) doxygen doc.cfg
 
+gcov:
+	$(GCOV)
+
 install: all
 	cp src/smtp.h $(INSTALL_PREFIX)/include/smtp.h
 	cp $(BDIR)/release/libsmtp.a $(INSTALL_PREFIX)/lib/libsmtp.a
@@ -190,6 +195,7 @@ test: all       \
 	##$(VALGRIND_MEMCHECK) $(BDIR)/debug/clang_test
 	$(VALGRIND_MEMCHECK) $(BDIR)/release/test_nossl
 	$(BDIR)/release/test_cpp_wrapper
+	$(GCOV)
 
 test_unit: all
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test -u
