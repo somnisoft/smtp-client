@@ -158,6 +158,8 @@ all: $(BDIR)/debug/libsmtp.a          \
      $(BDIR)/doc/html/index.html      \
      $(BDIR)/debug/test               \
      $(BDIR)/debug/clang_test         \
+     $(BDIR)/release/example_simple   \
+     $(BDIR)/release/example_html     \
      $(BDIR)/release/test_nossl
 
 clean:
@@ -185,7 +187,7 @@ test: all       \
       test_unit
 	$(SCAN_BUILD)
 	$(VALGRIND_MEMCHECK) $(BDIR)/debug/test
-	$(VALGRIND_MEMCHECK) $(BDIR)/debug/clang_test
+	##$(VALGRIND_MEMCHECK) $(BDIR)/debug/clang_test
 	$(VALGRIND_MEMCHECK) $(BDIR)/release/test_nossl
 	$(BDIR)/release/test_cpp_wrapper
 
@@ -282,6 +284,18 @@ $(BDIR)/debug/clang_smtp.o: src/smtp.c | $(BDIR)/debug
 
 $(BDIR)/debug/clang_test.o: test/test.c | $(BDIR)/debug
 	$(COMPILE.c.clang) $(CDEF_POSIX) -Isrc/
+
+$(BDIR)/release/example_simple: $(BDIR)/release/example_simple.o \
+                                $(BDIR)/release/smtp.o
+	$(LINK.c.release) -lssl -lcrypto
+$(BDIR)/release/example_simple.o: test/example_simple.c | $(BDIR)/release
+	$(COMPILE.c.release) -Isrc
+
+$(BDIR)/release/example_html: $(BDIR)/release/example_html.o \
+                              $(BDIR)/release/smtp.o
+	$(LINK.c.release) -lssl -lcrypto
+$(BDIR)/release/example_html.o: test/example_html.c | $(BDIR)/release
+	$(COMPILE.c.release) -Isrc
 
 $(BDIR)/release/test_nossl: $(BDIR)/release/smtp_nossl.o \
                             $(BDIR)/release/test_nossl.o

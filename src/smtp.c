@@ -2323,6 +2323,47 @@ smtp_date_rfc_2822(char *const date){
 }
 
 /**
+ * Search function used by bsearch, allowing the caller to check for
+ * headers with existing keys.
+ *
+ * @param v1 String to search for in the list.
+ * @param v2 The @ref smtp_header to compare.
+ * @retval  0 If the keys match.
+ * @retval !0 If the keys do not match.
+ */
+static int
+smtp_header_cmp_key(const void *const v1,
+                    const void *const v2){
+  const char *key;
+  const struct smtp_header *header2;
+
+  key = v1;
+  header2 = v2;
+  return strcmp(key, header2->key);
+}
+
+/**
+ * Determine if the header key has already been defined in this context.
+ *
+ * @param[in] smtp SMTP client context.
+ * @param[in] key  Header key value to search for.
+ * @retval 1 If the header already exists in this context.
+ * @retval 0 If the header does not exist in this context.
+ */
+static int
+smtp_header_exists(const struct smtp *const smtp,
+                   const char *const key){
+  if(bsearch(key,
+             smtp->header_list,
+             smtp->num_headers,
+             sizeof(*smtp->header_list),
+             smtp_header_cmp_key) == NULL){
+    return 0;
+  }
+  return 1;
+}
+
+/**
  * Minimum length of buffer required to hold the MIME boundary test:
  * mimeXXXXXXXXXX
  * 123456789012345
@@ -2364,35 +2405,25 @@ smtp_gen_mime_boundary(char *const boundary){
  *
  * @param[in] smtp     SMTP client context.
  * @param[in] boundary MIME boundary text.
- * @param[in] body     Email body text.
+ * @param[in] body_dd  Email body with double dots added at the
+ *                     beginning of each line.
  * @return See @ref smtp_status_code.
  */
 static enum smtp_status_code
 smtp_print_mime_header_and_body(struct smtp *const smtp,
                                 const char *const boundary,
-                                const char *const body){
+                                const char *const body_dd){
   /* Buffer size for the static MIME text used below. */
   const size_t MIME_TEXT_BUFSZ = 1000;
-  char *data_double_dot;
   size_t data_double_dot_len;
   char *data_header_and_body;
   char *concat;
 
-  /*
-   * Insert an extra dot for each line that begins with a dot. This will
-   * prevent data in the body parameter from prematurely ending the DATA
-   * segment.
-   */
-  if((data_double_dot = smtp_str_replace("\r\n.", "\r\n..", body)) == NULL){
-    return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
-  }
-
-  data_double_dot_len = strlen(data_double_dot);
+  data_double_dot_len = strlen(body_dd);
   if(smtp_si_add_size_t(data_double_dot_len,
                         MIME_TEXT_BUFSZ,
                         &data_double_dot_len) ||
      (data_header_and_body = malloc(data_double_dot_len)) == NULL){
-    free(data_double_dot);
     return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
   }
 
@@ -2413,12 +2444,11 @@ smtp_print_mime_header_and_body(struct smtp *const smtp,
                        "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
                        "\r\n");
   concat = smtp_stpcpy(concat,
-                       data_double_dot);
+                       body_dd);
   smtp_stpcpy(concat,
               "\r\n"
               "\r\n");
 
-  free(data_double_dot);
   smtp_puts(smtp, data_header_and_body);
   free(data_header_and_body);
   return smtp->status_code;
@@ -2506,20 +2536,21 @@ smtp_print_mime_end(struct smtp *const smtp,
  *
  * This includes the MIME sections for the email body and attachments.
  *
- * @param[in] smtp SMTP client context.
- * @param[in] body Null-terminated string to send in the email body.
+ * @param[in] smtp     SMTP client context.
+ * @param[in] body_dd  Email body with double dots added at the
+ *                     beginning of each line.
  * @return See @ref smtp_status_code.
  */
 static enum smtp_status_code
 smtp_print_mime_email(struct smtp *const smtp,
-                      const char *const body){
+                      const char *const body_dd){
   char boundary[SMTP_MIME_BOUNDARY_LEN];
   size_t i;
   struct smtp_attachment *attachment;
 
   smtp_gen_mime_boundary(boundary);
 
-  if(smtp_print_mime_header_and_body(smtp, boundary, body) != SMTP_STATUS_OK){
+  if(smtp_print_mime_header_and_body(smtp, boundary, body_dd) != SMTP_STATUS_OK){
     return smtp->status_code;
   }
 
@@ -2533,6 +2564,51 @@ smtp_print_mime_email(struct smtp *const smtp,
   }
 
   return smtp_print_mime_end(smtp, boundary);
+}
+
+/**
+ * Print the email data provided by the user without MIME formatting.
+ *
+ * @param[in,out] smtp     SMTP client context.
+ * @param[in]     body_dd  Email body with double dots added at the
+ *                         beginning of each line.
+ * @return                 See @ref smtp_status_code.
+ */
+static enum smtp_status_code
+smtp_print_nomime_email(struct smtp *const smtp,
+                        const char *const body_dd){
+  return smtp_puts_terminate(smtp, body_dd);
+}
+
+/**
+ * Send the email body to the mail server.
+ *
+ * @param[in,out] smtp SMTP client context.
+ * @param[in]     body Email body text.
+ * @return             See @ref smtp_status_code.
+ */
+static enum smtp_status_code
+smtp_print_email(struct smtp *const smtp,
+                 const char *const body){
+  char *body_double_dot;
+
+  /*
+   * Insert an extra dot for each line that begins with a dot. This will
+   * prevent data in the body parameter from prematurely ending the DATA
+   * segment.
+   */
+  if((body_double_dot = smtp_str_replace("\n.", "\n..", body)) == NULL){
+    return smtp_status_code_set(smtp, SMTP_STATUS_NOMEM);
+  }
+
+  if(smtp_header_exists(smtp, "Content-Type")){
+    smtp_print_nomime_email(smtp, body_double_dot);
+  }
+  else{
+    smtp_print_mime_email(smtp, body_double_dot);
+  }
+  free(body_double_dot);
+  return smtp->status_code;
 }
 
 /**
@@ -2733,47 +2809,6 @@ smtp_header_cmp(const void *v1,
   header1 = v1;
   header2 = v2;
   return strcmp(header1->key, header2->key);
-}
-
-/**
- * Search function used by bsearch which allows the caller to check for
- * headers with existing keys.
- *
- * @param v1 String to search for in the list.
- * @param v2 The @ref smtp_header to compare.
- * @retval  0 If the keys match.
- * @retval !0 If the keys do not match.
- */
-static int
-smtp_header_cmp_key(const void *const v1,
-                    const void *const v2){
-  const char *key;
-  const struct smtp_header *header2;
-
-  key = v1;
-  header2 = v2;
-  return strcmp(key, header2->key);
-}
-
-/**
- * Determine if the header key has already been defined in this context.
- *
- * @param[in] smtp SMTP client context.
- * @param[in] key  Header key value to search for.
- * @retval 1 If the header already exists in this context.
- * @retval 0 If the header does not exist in this context.
- */
-static int
-smtp_header_exists(const struct smtp *const smtp,
-                   const char *const key){
-  if(bsearch(key,
-             smtp->header_list,
-             smtp->num_headers,
-             sizeof(*smtp->address_list),
-             smtp_header_cmp_key) == NULL){
-    return 0;
-  }
-  return 1;
 }
 
 /**
@@ -3113,7 +3148,7 @@ smtp_mail(struct smtp *const smtp,
     }
   }
 
-  if(smtp_print_mime_email(smtp, body) != SMTP_STATUS_OK){
+  if(smtp_print_email(smtp, body)){
     return smtp->status_code;
   }
 

@@ -3303,6 +3303,169 @@ smtp_func_test_all_nodebug(struct smtp_test_config *const config){
 }
 
 /**
+ * Send an HTML email.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_html(struct smtp_test_config *const config){
+  enum smtp_status_code rc;
+  const char *const html_body =
+  "<html>\n"
+  " <head><title>HTML Email Example</title></head>\n"
+  " <body>\n"
+  "  <table style='border: 1px solid black; background-color: #a0a0a0'>\n"
+  "   <caption>smtp_connection_security</caption>\n"
+  "   <tr>\n"
+  "    <th>Code</th>\n"
+  "    <th>Description</th>\n"
+  "   </tr>\n"
+  "   <tr>\n"
+  "    <td>SMTP_SECURITY_STARTTLS</td>\n"
+  "    <td>Use STARTTLS</td>\n"
+  "   </tr>\n"
+  "   <tr>\n"
+  "    <td>SMTP_SECURITY_TLS</td>\n"
+  "    <td>Direct TLS connection</td>\n"
+  "   </tr>\n"
+  "   <tr>\n"
+  "    <td>SMTP_SECURITY_NONE</td>\n"
+  "    <td>No encryption</td>\n"
+  "   </tr>\n"
+  "  </table>\n"
+  " </body>\n"
+  "</html>";
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  smtp_header_clear_all(config->smtp);
+
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: HTML Email (Content-Type: text/html)");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_header_add(config->smtp,
+                       "Content-Type",
+                       "text/html");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        SMTP_TEST_DEFAULT_TO_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_mail(config->smtp, html_body);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
+ * Send an HTML email with a plaintext fallback.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_html_with_plaintext(struct smtp_test_config *const config){
+  enum smtp_status_code rc;
+  const char *const html_body =
+  "This is a multi-part message in MIME format.\r\n"
+  "...\n"
+  "..\n"
+  ".\n"
+  ".\r"
+  ".\n"
+  "\r\n"
+  "--FEDCBA\r\n"
+  "This is a multi-part message in MIME format.\r\n"
+  "--ABCDEF\r\n"
+  "Content-Type: text/plain; charset=\"utf-8\"\r\n"
+  "Content-Transfer-Encoding: 8bit\r\n"
+  "\r\n"
+  "Plaintext section.\r\n"
+  "\r\n"
+  "--ABCDEF\r\n"
+  "Content-Type: text/html; charset=\"utf-8\"\r\n"
+  "Content-Transfer-Encoding: 8bit\r\n"
+  "\r\n"
+  "<html>\n"
+  " <head><title>HTML/Plaintext Email</title></head>\n"
+  " <body>\n"
+  "  <h1>HTML section</h1>\n"
+  "  <h2>Heading 2</h2>\n"
+  " </body>\n"
+  "</html>\n"
+  "...\n"
+  "..\n"
+  ".\n"
+  ".";
+
+  rc = smtp_open(config->server,
+                 config->port,
+                 SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                 SMTP_TEST_DEFAULT_FLAGS,
+                 SMTP_TEST_DEFAULT_CAFILE,
+                 &config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+
+  smtp_header_clear_all(config->smtp);
+
+  rc = smtp_header_add(config->smtp,
+                       "Subject",
+                       "SMTP Test: HTML Email (with plaintext)");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_header_add(config->smtp,
+                       "Content-Type",
+                       "multipart/alternative; boundary=\"ABCDEF\"");
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_FROM,
+                        config->email_from,
+                        SMTP_TEST_DEFAULT_FROM_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_address_add(config->smtp,
+                        SMTP_ADDRESS_TO,
+                        config->email_to,
+                        SMTP_TEST_DEFAULT_TO_NAME);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_mail(config->smtp, html_body);
+  assert(rc == SMTP_STATUS_OK);
+
+  rc = smtp_close(config->smtp);
+  assert(rc == SMTP_STATUS_OK);
+}
+
+/**
+ * Send HTML emails, overriding the Content-Type.
+ *
+ * @param[in] config SMTP server context.
+ */
+static void
+smtp_func_test_all_html(struct smtp_test_config *const config){
+  smtp_func_test_html(config);
+  smtp_func_test_html_with_plaintext(config);
+}
+
+/**
  * Test failure or error conditions not covered by any of the other failure
  * tests.
  *
@@ -4882,6 +5045,7 @@ smtp_func_test_postfix(void){
   smtp_func_test_all_body(&config);
   smtp_func_test_all_write(&config);
   smtp_func_test_all_nodebug(&config);
+  smtp_func_test_all_html(&config);
 }
 
 

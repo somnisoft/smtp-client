@@ -270,6 +270,13 @@ smtp_auth(struct smtp *const smtp,
  * The 'Date' header will automatically get generated here if it hasn't
  * already been set using @ref smtp_header_add.
  *
+ * If the application overrides the default 'Content-Type' header, then
+ * this function will output the @p body as raw data just below the email
+ * headers, and it will not output the attachments added using the
+ * smtp_attachment_add_* functions. In other words, the application must
+ * create its own MIME sections (if needed) when overriding the
+ * 'Content-Type' header.
+ *
  * @param[in] smtp SMTP client context.
  * @param[in] body Null-terminated string to send in the email body.
  * @return See @ref smtp_status_code.
@@ -340,6 +347,8 @@ smtp_status_code_errstr(enum smtp_status_code status_code);
  *
  * If adding a header with an existing key, this will insert instead of
  * replacing the existing header. See @ref smtp_header_clear_all.
+ *
+ * See @ref smtp_mail when overriding the default 'Content-Type' header.
  *
  * @param[in] smtp  SMTP client context.
  * @param[in] key   Key name for new header. It must consist only of
