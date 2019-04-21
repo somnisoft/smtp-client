@@ -2161,6 +2161,79 @@ smtp_test_config_load_from_file(const char *const config_path){
 }
 
 /**
+ * Call @ref smtp_auth and check the result.
+ *
+ * @param[in] auth_method   See @ref smtp_authentication_method
+ * @param[in] user          Username.
+ * @param[in] pass          Password.
+ * @param[in] expect_status Expected return code from @ref smtp_auth.
+ */
+static void
+smtp_auth_check(const enum smtp_authentication_method auth_method,
+                const char *const user,
+                const char *const pass,
+                const enum smtp_status_code expect_status){
+  g_rc = smtp_auth(g_config.smtp, auth_method, user, pass);
+  assert(g_rc == expect_status);
+}
+
+/**
+ * Call @ref smtp_address_add and check the result.
+ *
+ * @param[in] type          See @ref smtp_address_type.
+ * @param[in] email         Email address.
+ * @param[in] name          Name corresponding to @p email.
+ * @param[in] expect_status Expected return code from @ref smtp_address_add.
+ */
+static void
+smtp_address_add_check(const enum smtp_address_type type,
+                       const char *const email,
+                       const char *const name,
+                       const enum smtp_status_code expect_status){
+  g_rc = smtp_address_add(g_config.smtp, type, email, name);
+  assert(g_rc == expect_status);
+}
+
+/**
+ * Call @ref smtp_header_add and check the result.
+ *
+ * @param[in] key           Key name for new header.
+ * @param[in] value         Value for new header.
+ * @param[in] expect_status Expected return code from @ref smtp_header_add.
+ */
+static void
+smtp_header_add_check(const char *const key,
+                      const char *const value,
+                      const enum smtp_status_code expect_status){
+  g_rc = smtp_header_add(g_config.smtp, key, value);
+  assert(g_rc == expect_status);
+}
+
+/**
+ * Call @ref smtp_mail and check the result.
+ *
+ * @param[in] body          Email body text.
+ * @param[in] expect_status Expected return code from @ref smtp_mail.
+ */
+static void
+smtp_mail_check(const char *const body,
+                const enum smtp_status_code expect_status){
+  g_rc = smtp_mail(g_config.smtp, body);
+  assert(g_rc == expect_status);
+}
+
+/**
+ * Call @ref smtp_close and check the result.
+ *
+ * @param[in] expect_status Expected return code from @ref smtp_close.
+ */
+static void
+smtp_close_check(const enum smtp_status_code expect_status){
+  g_rc = smtp_close(g_config.smtp);
+  assert(g_rc == expect_status);
+}
+
+/**
  * Opens an smtp connection using @ref smtp_open and adds default addresses.
  *
  * Uses default connection and flag parameters and ensures the return status
@@ -2177,23 +2250,20 @@ test_smtp_open_default(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_CC,
-                          g_config.email_to_2,
-                          SMTP_TEST_DEFAULT_CC_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_CC,
+                         g_config.email_to_2,
+                         SMTP_TEST_DEFAULT_CC_NAME,
+                         SMTP_STATUS_OK);
 
   g_rc = smtp_attachment_add_mem(g_config.smtp,
                                  "test.txt",
@@ -2223,8 +2293,7 @@ smtp_func_test_all_status_code_get(void){
   assert(g_rc == SMTP_STATUS_NOMEM);
   smtp_status_code_clear(g_config.smtp);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -2257,29 +2326,23 @@ smtp_func_test_send_email(const char *const port,
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_auth(g_config.smtp, auth_method, g_config.user, g_config.pass);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_auth_check(auth_method, g_config.user, g_config.pass, SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp, "Subject", subject);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject", subject, SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp, body);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check(body, SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -2401,35 +2464,29 @@ smtp_func_test_attachment_path(const char *const name,
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_TEST_DEFAULT_AUTH_METHOD,
-                   g_config.user,
-                   g_config.pass);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_auth_check(SMTP_TEST_DEFAULT_AUTH_METHOD,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
   g_rc = smtp_attachment_add_path(g_config.smtp, name, path);
   assert(g_rc == expect_rc);
 
-  g_rc = smtp_header_add(g_config.smtp, "Subject", g_config.subject);
-  assert(g_rc == expect_rc);
+  smtp_header_add_check("Subject", g_config.subject, expect_rc);
 
-  g_rc = smtp_mail(g_config.smtp, g_config.body);
-  assert(g_rc == expect_rc);
+  smtp_mail_check(g_config.body, expect_rc);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == expect_rc);
+  smtp_close_check(expect_rc);
 }
 
 /**
@@ -2461,29 +2518,24 @@ smtp_func_test_attachment_fp(const char *const name,
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
   g_rc = smtp_attachment_add_fp(g_config.smtp, name, fp);
   assert(g_rc == expect_rc);
 
-  g_rc = smtp_header_add(g_config.smtp, "Subject", g_config.subject);
-  assert(g_rc == expect_rc);
+  smtp_header_add_check("Subject", g_config.subject, expect_rc);
 
-  g_rc = smtp_mail(g_config.smtp, g_config.body);
-  assert(g_rc == expect_rc);
+  smtp_mail_check(g_config.body, expect_rc);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == expect_rc);
+  smtp_close_check(expect_rc);
 
   fp_rc = fclose(fp);
   assert(fp_rc == 0);
@@ -2517,23 +2569,20 @@ smtp_func_test_attachment_mem(size_t num_attachment){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_TEST_DEFAULT_AUTH_METHOD,
-                   g_config.user,
-                   g_config.pass);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_auth_check(SMTP_TEST_DEFAULT_AUTH_METHOD,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
   for(i = 0; i < num_attachment; i++){
     sprintf(attachment_name, "%u.txt", (unsigned)(i + 1));
@@ -2545,14 +2594,11 @@ smtp_func_test_attachment_mem(size_t num_attachment){
     assert(g_rc == SMTP_STATUS_OK);
   }
 
-  g_rc = smtp_header_add(g_config.smtp, "Subject", g_config.subject);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject", g_config.subject, SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp, g_config.body);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check(g_config.body, SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -2571,23 +2617,20 @@ smtp_func_test_attachment_long_text(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_TEST_DEFAULT_AUTH_METHOD,
-                   g_config.user,
-                   g_config.pass);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_auth_check(SMTP_TEST_DEFAULT_AUTH_METHOD,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
   long_text = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 5000);
   assert(long_text);
@@ -2598,17 +2641,14 @@ smtp_func_test_attachment_long_text(void){
   assert(g_rc == SMTP_STATUS_OK);
   free(long_text);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Long Text Attachment");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Long Text Attachment",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain long text attachment");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain long text attachment",
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -2677,150 +2717,122 @@ smtp_func_test_all_address(void){
   /* Multiple TO addresses. */
   smtp_header_clear_all(g_config.smtp);
   smtp_address_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Multiple TO Addresses");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to_2,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain two TO recipients.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Multiple TO Addresses",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to_2,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain two TO recipients.",
+                  SMTP_STATUS_OK);
 
   /* One BCC address. */
   smtp_header_clear_all(g_config.smtp);
   smtp_address_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: BCC Address");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_BCC,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_BCC_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain one BCC recipient.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: BCC Address",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_BCC,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_BCC_NAME,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain one BCC recipient.",
+                  SMTP_STATUS_OK);
 
   /* One TO and one BCC address. */
   smtp_header_clear_all(g_config.smtp);
   smtp_address_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: TO and BCC Addresses");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_BCC,
-                          g_config.email_to_2,
-                          SMTP_TEST_DEFAULT_BCC_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain one TO and one BCC recipient.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: TO and BCC Addresses",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_BCC,
+                         g_config.email_to_2,
+                         SMTP_TEST_DEFAULT_BCC_NAME,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain one TO and one BCC recipient.",
+                  SMTP_STATUS_OK);
 
   /* One TO, CC, and BCC addresses. */
   smtp_header_clear_all(g_config.smtp);
   smtp_address_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: TO, CC, and BCC Addresses");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_CC,
-                          g_config.email_to_2,
-                          SMTP_TEST_DEFAULT_CC_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_BCC,
-                          g_config.email_to_3,
-                          SMTP_TEST_DEFAULT_BCC_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain one TO, CC, and BCC recipient.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: TO, CC, and BCC Addresses",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_CC,
+                         g_config.email_to_2,
+                         SMTP_TEST_DEFAULT_CC_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_BCC,
+                         g_config.email_to_3,
+                         SMTP_TEST_DEFAULT_BCC_NAME,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain one TO, CC, and BCC recipient.",
+                  SMTP_STATUS_OK);
 
   /* No FROM address. */
   smtp_header_clear_all(g_config.smtp);
   smtp_address_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: No FROM address");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should not have a FROM address in the header.");
-  assert(g_rc == SMTP_STATUS_PARAM);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: No FROM address",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should not have a FROM address in the header.",
+                  SMTP_STATUS_PARAM);
   smtp_status_code_clear(g_config.smtp);
 
   /* FROM address contains UTF-8 characters. */
   smtp_header_clear_all(g_config.smtp);
   smtp_address_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: From contains UTF-8 characters");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
+  smtp_header_add_check("Subject",
+                        "SMTP Test: From contains UTF-8 characters",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
                           "smtp-cli€nt-t€st@somnisoft.com",
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
   /**
    * @todo email successful queued but not sent.
    */
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain a FROM address with UTF-8.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain a FROM address with UTF-8.",
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -2842,102 +2854,84 @@ smtp_func_test_all_names(void){
   /* NULL From and Blank To Names */
   smtp_address_clear_all(g_config.smtp);
   smtp_header_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Null From Name and Blank To Name");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          NULL);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          "");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should not have a name in From or To.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Null From Name and Blank To Name",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         NULL,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         "",
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should not have a name in From or To.",
+                  SMTP_STATUS_OK);
 
   /* Two To Names */
   smtp_address_clear_all(g_config.smtp);
   smtp_header_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Two To Names");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          "Email Name 1");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to_2,
-                          "Email Name 2");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-           "This email should have two addresses with different names.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Two To Names",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         "Email Name 1",
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to_2,
+                         "Email Name 2",
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should have two addresses with different names.",
+                  SMTP_STATUS_OK);
 
   /* Three To Names */
   smtp_address_clear_all(g_config.smtp);
   smtp_header_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Three To Names");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          "Email Name 1");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to_2,
-                          "Email Name 2");
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to_3,
-                          "Email Name 3");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-           "This email should have three addresses with different names.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Three To Names",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         "Email Name 1",
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to_2,
+                         "Email Name 2",
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to_3,
+                         "Email Name 3",
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should have three addresses with different names.",
+                  SMTP_STATUS_OK);
 
   /* Long email name */
   long_name = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 2);
   assert(long_name);
   smtp_address_clear_all(g_config.smtp);
   smtp_header_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Long Email Names");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          long_name);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          long_name);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should have a long alphabet name.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Long Email Names",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         long_name,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         long_name,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should have a long alphabet name.",
+                  SMTP_STATUS_OK);
   free(long_name);
 
   /* Very long email name */
@@ -2945,28 +2939,23 @@ smtp_func_test_all_names(void){
   assert(long_name);
   smtp_address_clear_all(g_config.smtp);
   smtp_header_clear_all(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Very Long Email Names");
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          long_name);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          long_name);
-  assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should have a very long alphabet name "
-                   "repeated 100 times.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Very Long Email Names",
+                        SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         long_name,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         long_name,
+                         SMTP_STATUS_OK);
+  smtp_mail_check("This email should have a very long alphabet name "
+                  "repeated 100 times.",
+                  SMTP_STATUS_OK);
   free(long_name);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -2987,34 +2976,28 @@ smtp_func_test_header_custom_date(void){
 
   smtp_header_clear_all(g_config.smtp);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Custom Date");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Custom Date",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Date",
-                         "Thu, 21 May 1998 05:33:29 -0700");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Date",
+                        "Thu, 21 May 1998 05:33:29 -0700",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain a custom date header.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain a custom date header.",
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3034,34 +3017,26 @@ smtp_func_test_header_null_no_date(void){
 
   smtp_header_clear_all(g_config.smtp);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Null Header (No Date)");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Null Header (No Date)",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Date",
-                         NULL);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Date", NULL, SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should not contain a Date header.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check("This email should not contain a Date header.",
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3083,37 +3058,27 @@ smtp_func_test_header_long(void){
 
   long_text = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 1000);
   assert(long_text);
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         long_text);
-  assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Custom",
-                         long_text);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject", long_text, SMTP_STATUS_OK);
+  smtp_header_add_check("Custom", long_text, SMTP_STATUS_OK);
 
   free(long_text);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email should contain very long"
-                   " Subject and Custom headers.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check("This email should contain very long"
+                  " Subject and Custom headers.",
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3141,33 +3106,28 @@ smtp_func_test_all_body(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: Very Long Email Body");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: Very Long Email Body",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
   long_body = smtp_str_repeat(STR_ALPHABET_LOWERCASE " ", 5000);
   assert(long_body);
 
-  g_rc = smtp_mail(g_config.smtp, long_body);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check(long_body, SMTP_STATUS_OK);
 
   free(long_body);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3184,8 +3144,7 @@ smtp_func_test_all_write(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
   g_smtp_test_send_one_byte = 0;
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3203,29 +3162,24 @@ smtp_func_test_all_nodebug(void){
 
   smtp_header_clear_all(g_config.smtp);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: No Debug Mode");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: No Debug Mode",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp,
-                   "This email sent with debug mode disabled.");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check("This email sent with debug mode disabled.",
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3269,33 +3223,25 @@ smtp_func_test_html(void){
 
   smtp_header_clear_all(g_config.smtp);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: HTML Email (Content-Type: text/html)");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: HTML Email (Content-Type: text/html)",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Content-Type",
-                         "text/html");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Content-Type", "text/html", SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp, html_body);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check(html_body, SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3345,33 +3291,27 @@ smtp_func_test_html_with_plaintext(void){
 
   smtp_header_clear_all(g_config.smtp);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Subject",
-                         "SMTP Test: HTML Email (with plaintext)");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject",
+                        "SMTP Test: HTML Email (with plaintext)",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp,
-                         "Content-Type",
-                         "multipart/alternative; boundary=\"ABCDEF\"");
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Content-Type",
+                        "multipart/alternative; boundary=\"ABCDEF\"",
+                        SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp, html_body);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check(html_body, SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3399,8 +3339,7 @@ test_failure_misc(void){
   assert(g_rc == SMTP_STATUS_OK);
   g_rc = smtp_write(g_config.smtp, "", (size_t)INT_MAX + 1);
   assert(g_rc == SMTP_STATUS_SEND);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_SEND);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Memory allocation failure in smtp_puts_debug - the error gets ignored. */
   g_smtp_test_err_malloc_ctr = 0;
@@ -3412,8 +3351,7 @@ test_failure_misc(void){
                    &g_config.smtp);
   g_smtp_test_err_malloc_ctr = -1;
   assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -3431,8 +3369,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_calloc_ctr = -1;
   assert(g_rc == SMTP_STATUS_NOMEM);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_NOMEM);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Invalid hostname should cause getaddrinfo() to fail. */
   g_rc = smtp_open(NULL,
@@ -3442,8 +3379,7 @@ test_failure_open(void){
                    SMTP_TEST_DEFAULT_CAFILE,
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_CONNECT);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_CONNECT);
+  smtp_close_check(SMTP_STATUS_CONNECT);
 
   /* socket() function failure. */
   g_smtp_test_err_socket_ctr = 0;
@@ -3455,8 +3391,7 @@ test_failure_open(void){
                  &g_config.smtp);
   g_smtp_test_err_socket_ctr = -1;
   assert(g_rc == SMTP_STATUS_CONNECT);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_CONNECT);
+  smtp_close_check(SMTP_STATUS_CONNECT);
 
   /* connect() function failure. */
   g_smtp_test_err_connect_ctr = 0;
@@ -3468,8 +3403,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_connect_ctr = -1;
   assert(g_rc == SMTP_STATUS_CONNECT);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_CONNECT);
+  smtp_close_check(SMTP_STATUS_CONNECT);
 
   /* SSL_CTX_new() failure. */
   g_smtp_test_err_ssl_ctx_new_ctr = 0;
@@ -3481,8 +3415,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_ctx_new_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* ERR_peek_error() failure. */
   g_smtp_test_err_err_peek_error_ctr = 0;
@@ -3494,8 +3427,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_err_peek_error_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* SSL_new() failure. */
   g_smtp_test_err_ssl_new_ctr = 0;
@@ -3507,8 +3439,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_new_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* BIO_new_socket() failure. */
   g_smtp_test_err_bio_new_socket_ctr = 0;
@@ -3520,8 +3451,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_bio_new_socket_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* SSL_connect() failure. */
   g_smtp_test_err_ssl_connect_ctr = 0;
@@ -3533,8 +3463,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_connect_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* SSL_do_handshake() failure. */
   g_smtp_test_err_ssl_do_handshake_ctr = 0;
@@ -3546,8 +3475,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_do_handshake_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /*
    * Ensure self-signed certificate throws an error. This error will occur by
@@ -3560,8 +3488,7 @@ test_failure_open(void){
                    SMTP_TEST_DEFAULT_CAFILE,
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* SSL_CTX_load_verify_locations() failure. */
   g_rc = smtp_open(g_config.server,
@@ -3571,8 +3498,7 @@ test_failure_open(void){
                    "test/config/file_does_not_exist",
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* SSL_get_peer_certificate() failure. */
   g_smtp_test_err_ssl_get_peer_certificate_ctr = 0;
@@ -3584,8 +3510,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_get_peer_certificate_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* X509_check_host() failure.  */
   g_smtp_test_err_x509_check_host_ctr = 0;
@@ -3597,8 +3522,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_x509_check_host_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /*
    * TLS failure in @ref smtp_initiate_handshake (1) when using direct
@@ -3613,8 +3537,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_ctx_new_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* @ref smtp_initiate_handshake failure in (2). */
   g_smtp_test_err_recv_ctr = 0;
@@ -3626,8 +3549,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_recv_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* @ref smtp_initiate_handshake failure in (3). */
   g_smtp_test_err_send_ctr = 0;
@@ -3639,8 +3561,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_send_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* @ref smtp_initiate_handshake STARTTLS send failure in (4). */
   g_smtp_test_err_send_ctr = 1;
@@ -3652,8 +3573,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_send_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* @ref smtp_initiate_handshake failed response to STARTTLS in (4). */
   g_smtp_test_err_recv_ctr = 2;
@@ -3665,8 +3585,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_recv_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* @ref smtp_initiate_handshake second EHLO in (4). */
   g_smtp_test_err_ssl_write_ctr = 0;
@@ -3678,8 +3597,7 @@ test_failure_open(void){
                    &g_config.smtp);
   g_smtp_test_err_ssl_write_ctr = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* Failure in @ref BIO_should_retry. */
   g_smtp_test_err_ssl_read_ctr = 0;
@@ -3695,8 +3613,7 @@ test_failure_open(void){
   g_smtp_test_err_bio_should_retry_ctr = -1;
   g_smtp_test_err_bio_should_retry_rc = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 
   /* Failure in @ref SSL_Read but re-reading caused by @ref BIO_should_retry. */
   g_smtp_test_err_ssl_read_ctr = 0;
@@ -3712,8 +3629,7 @@ test_failure_open(void){
   g_smtp_test_err_bio_should_retry_ctr = -1;
   g_smtp_test_err_bio_should_retry_rc = -1;
   assert(g_rc == SMTP_STATUS_OK);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 
   /* Test server prematurely ending the connection with no bytes to read. */
   g_smtp_test_err_recv_ctr = 2;
@@ -3727,8 +3643,7 @@ test_failure_open(void){
   g_smtp_test_err_recv_ctr = -1;
   g_smtp_test_err_recv_rc = -1;
   assert(g_rc == SMTP_STATUS_HANDSHAKE);
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_HANDSHAKE);
+  smtp_close_check(SMTP_STATUS_HANDSHAKE);
 }
 
 /**
@@ -3747,70 +3662,62 @@ test_failure_address_add(void){
 
   /* Invalid SMTP status code. */
   smtp_status_code_set(g_config.smtp, SMTP_STATUS_NOMEM);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_NOMEM);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_NOMEM);
 
   /* Invalid email address. */
   smtp_status_code_clear(g_config.smtp);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          "<invalid>",
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_PARAM);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         "<invalid>",
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_PARAM);
 
   /* Invalid email name. */
   smtp_status_code_clear(g_config.smtp);
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          "\"invalid\"");
-  assert(g_rc == SMTP_STATUS_PARAM);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                          "\"invalid\"",
+                         SMTP_STATUS_PARAM);
 
   /* Wrap when trying to increase size of address list. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_si_add_size_t_ctr = 0;
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
   /* Memory allocation failed while trying to increase size of address list. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_realloc_ctr = 0;
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
   /* Failed to duplicate email string. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_malloc_ctr = 0;
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
   /* Failed to duplicate name string. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_malloc_ctr = 1;
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_NOMEM);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 }
 
 /**
@@ -3934,8 +3841,7 @@ test_failure_attachment_add(void){
   g_rc = smtp_attachment_add_path(g_config.smtp, "test", "test.txt");
   assert(g_rc == SMTP_STATUS_PARAM);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_PARAM);
+  smtp_close_check(SMTP_STATUS_PARAM);
 }
 
 /**
@@ -3954,49 +3860,41 @@ test_failure_header_add(void){
 
   /* Invalid SMTP status code. */
   smtp_status_code_set(g_config.smtp, SMTP_STATUS_NOMEM);
-  g_rc = smtp_header_add(g_config.smtp, "key", "value");
-  assert(g_rc == SMTP_STATUS_NOMEM);
+  smtp_header_add_check("key", "value", SMTP_STATUS_NOMEM);
 
   /* Invalid header key. */
   smtp_status_code_clear(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp, "invalid:", "value");
-  assert(g_rc == SMTP_STATUS_PARAM);
+  smtp_header_add_check("invalid:", "value", SMTP_STATUS_PARAM);
 
   /* Invalid header value. */
   smtp_status_code_clear(g_config.smtp);
-  g_rc = smtp_header_add(g_config.smtp, "key", "invalid\n");
-  assert(g_rc == SMTP_STATUS_PARAM);
+  smtp_header_add_check("key", "invalid\n", SMTP_STATUS_PARAM);
 
   /* Wrap when increasing the header list size. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_si_add_size_t_ctr = 0;
-  g_rc = smtp_header_add(g_config.smtp, "key", "value");
+  smtp_header_add_check("key", "value", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
   /* Memory allocation failure while trying to increase header list size. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_realloc_ctr = 0;
-  g_rc = smtp_header_add(g_config.smtp, "key", "value");
+  smtp_header_add_check("key", "value", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
   /* Failed to strdup header key. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_malloc_ctr = 0;
-  g_rc = smtp_header_add(g_config.smtp, "key", "value");
+  smtp_header_add_check("key", "value", SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
   /* Failed to strdup header value. */
   smtp_status_code_clear(g_config.smtp);
   g_smtp_test_err_malloc_ctr = 1;
-  g_rc = smtp_header_add(g_config.smtp, "key", "value");
+  smtp_header_add_check("key", "value", SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_NOMEM);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 }
 
 /**
@@ -4024,8 +3922,7 @@ test_failure_status_code_set(void){
   g_rc = smtp_status_code_get(g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
@@ -4036,19 +3933,17 @@ test_failure_mail(void){
   /* Invalid SMTP client context. */
   test_smtp_open_default();
   smtp_status_code_set(g_config.smtp, SMTP_STATUS_NOMEM);
-  g_rc = smtp_mail(g_config.smtp, "body");
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Wrap in @ref smtp_mail_envelope_header size calculation. */
   test_smtp_open_default();
   g_smtp_test_strlen_custom_ret = 1;
   g_smtp_test_strlen_ret_value = SIZE_MAX - 3;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_strlen_custom_ret = 0;
   g_smtp_test_strlen_ret_value = 0;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /*
    * Memory allocation failure in the first call to
@@ -4056,100 +3951,89 @@ test_failure_mail(void){
    */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 0;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Send failure in @ref smtp_mail_envelope_header. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Read failure in @ref smtp_mail_envelope_header. */
   test_smtp_open_default();
   g_smtp_test_err_recv_ctr = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_RECV);
   g_smtp_test_err_recv_ctr = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
-  assert(g_rc == SMTP_STATUS_RECV);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_RECV);
 
   /* Send failure in the second call to @ref smtp_mail_envelope_header. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 1;
   g_smtp_test_err_ssl_write_ctr = 1;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Failed to send DATA command. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 3;
   g_smtp_test_err_ssl_write_ctr = 3;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Failed to read response to DATA command. */
   test_smtp_open_default();
   g_smtp_test_err_recv_ctr = 3;
   g_smtp_test_err_ssl_read_ctr = 3;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SERVER_RESPONSE);
   g_smtp_test_err_recv_ctr = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SERVER_RESPONSE);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SERVER_RESPONSE);
 
   /* Failed to generate date string in @ref smtp_date_rfc_2822. */
   test_smtp_open_default();
   g_smtp_test_err_localtime_r_ctr = 0;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_DATE);
   g_smtp_test_err_localtime_r_ctr = -1;
-  assert(g_rc == SMTP_STATUS_DATE);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_DATE);
 
   /* Failed to add Date header to list using @ref smtp_header_add. */
   test_smtp_open_default();
   g_smtp_test_err_realloc_ctr = 0;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* 1st wrap in @ref smtp_append_address_to_header */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 30;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* 2nd wrap in @ref smtp_append_address_to_header */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 31;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* 3rd wrap in @ref smtp_append_address_to_header */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 32;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /*
    * Failed to add FROM address to header using
@@ -4157,10 +4041,9 @@ test_failure_mail(void){
    */
   test_smtp_open_default();
   g_smtp_test_err_realloc_ctr = 1;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /*
    * Failed to add TO address to header using
@@ -4168,10 +4051,9 @@ test_failure_mail(void){
    */
   test_smtp_open_default();
   g_smtp_test_err_realloc_ctr = 3;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /*
    * Failed to add CC address to header using
@@ -4179,52 +4061,46 @@ test_failure_mail(void){
    */
   test_smtp_open_default();
   g_smtp_test_err_realloc_ctr = 5;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* 1st wrap in @ref smtp_print_header. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 48;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* 2nd wrap in @ref smtp_print_header. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 49;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Failed memory allocation in @ref smtp_print_header. */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 19;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Failed @ref smtp_fold_whitespace in @ref smtp_print_header. */
   test_smtp_open_default();
   g_smtp_test_err_realloc_ctr = 8;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Failed @ref smtp_puts_terminate in @ref smtp_print_header. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 4;
   g_smtp_test_err_ssl_write_ctr = 4;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /*
    * Failure in @ref smtp_print_mime_email ->
@@ -4233,18 +4109,16 @@ test_failure_mail(void){
    */
   test_smtp_open_default();
   g_smtp_test_err_realloc_ctr = 11;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_realloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Wrap in @ref smtp_print_mime_header_and_body size calculation. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 92;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /*
    * Memory allocation failure in @ref smtp_print_mime_email ->
@@ -4253,10 +4127,9 @@ test_failure_mail(void){
    */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 31;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /*
    * Send failure in @ref smtp_print_mime_email ->
@@ -4266,75 +4139,67 @@ test_failure_mail(void){
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 8;
   g_smtp_test_err_ssl_write_ctr = 8;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* 1st wrap in @ref smtp_print_mime_attachment. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 94;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* 2nd wrap in @ref smtp_print_mime_attachment. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 95;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Memory allocation failure in @ref smtp_print_mime_attachment. */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 33;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_NOMEM);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   /* Send failure in @ref smtp_print_mime_attachment. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 9;
   g_smtp_test_err_ssl_write_ctr = 9;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Send failure in @ref smtp_print_mime_end. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 10;
   g_smtp_test_err_ssl_write_ctr = 10;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Failed to send end of DATA segment. */
   test_smtp_open_default();
   g_smtp_test_err_send_ctr = 11;
   g_smtp_test_err_ssl_write_ctr = 11;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
 
   /* Invalid server response on DATA termination. */
   test_smtp_open_default();
   g_smtp_test_err_recv_ctr = 4;
   g_smtp_test_err_ssl_read_ctr = 4;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_SERVER_RESPONSE);
   g_smtp_test_err_recv_ctr = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SERVER_RESPONSE);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SERVER_RESPONSE);
 }
 
 /**
@@ -4352,10 +4217,9 @@ test_failure_close(void){
   assert(g_rc == SMTP_STATUS_OK);
   g_smtp_test_err_send_ctr = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
-  g_rc = smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
 
   /* Failed to close the socket file descriptor. */
   g_rc = smtp_open(g_config.server,
@@ -4366,9 +4230,8 @@ test_failure_close(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
   g_smtp_test_err_close_ctr = 0;
-  g_rc = smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_CLOSE);
   g_smtp_test_err_close_ctr = -1;
-  assert(g_rc == SMTP_STATUS_CLOSE);
 
   /* Failed to send QUIT and close the socket file descriptor. */
   g_rc = smtp_open(g_config.server,
@@ -4381,11 +4244,10 @@ test_failure_close(void){
   g_smtp_test_err_send_ctr = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
   g_smtp_test_err_close_ctr = 0;
-  g_rc = smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_SEND);
   g_smtp_test_err_send_ctr = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
   g_smtp_test_err_close_ctr = -1;
-  assert(g_rc == SMTP_STATUS_SEND);
 }
 
 /**
@@ -4399,112 +4261,100 @@ test_failure_auth(void){
   /* Invalid SMTP status code. */
   test_smtp_open_default();
   smtp_status_code_set(g_config.smtp, SMTP_STATUS_NOMEM);
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_NONE,
-                   g_config.user,
-                   g_config.pass);
-  assert(g_rc == SMTP_STATUS_NOMEM);
-  smtp_close(g_config.smtp);
+  smtp_auth_check(SMTP_AUTH_NONE,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_NOMEM);
+  smtp_close_check(SMTP_STATUS_NOMEM);
 
   smtp_test_sleep(15);
 
   /* Invalid authentication method. */
   test_smtp_open_default();
-  g_rc = smtp_auth(g_config.smtp,
-                   (enum smtp_authentication_method)-1,
-                   g_config.user,
-                   g_config.pass);
-  assert(g_rc == SMTP_STATUS_PARAM);
-  smtp_close(g_config.smtp);
+  smtp_auth_check((enum smtp_authentication_method)-1,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_PARAM);
+  smtp_close_check(SMTP_STATUS_PARAM);
 
   smtp_test_sleep(15);
 
   /* PLAIN - Invalid credentials. */
   test_smtp_open_default();
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   "invalid",
-                   "invalid");
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_auth_check(SMTP_AUTH_PLAIN, "invalid", "invalid", SMTP_STATUS_AUTH);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* PLAIN - Wrap in 1st calculation for memory allocation in (1). */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* PLAIN - Wrap in 2nd calculation for memory allocation in (1). */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 1;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* PLAIN - Memory allocation failure in (1). */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* PLAIN - @ref smtp_base64_encode failure in (2). */
   test_smtp_open_default();
   g_smtp_test_err_calloc_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_calloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* PLAIN - Wrap in calculation for memory allocation in (3). */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 2;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* PLAIN - Memory allocation failure in (3). */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 1;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4512,53 +4362,49 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_send_ctr      = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_base64_encode failure in (1). */
   test_smtp_open_default();
   g_smtp_test_err_calloc_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_calloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - Wrap in calculation for memory allocation in (2). */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - Memory allocation failure in (2). */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4566,14 +4412,13 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_send_ctr      = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4581,27 +4426,25 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_recv_ctr     = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_recv_ctr     = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_base64_encode failure in (3). */
   test_smtp_open_default();
   g_smtp_test_err_calloc_ctr = 2;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_calloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4609,51 +4452,47 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_send_ctr      = 1;
   g_smtp_test_err_ssl_write_ctr = 1;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_puts_terminate wrap in (3). */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 7;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - @ref smtp_puts_terminate memory allocation failure in (3). */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 3;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* LOGIN - Invalid credentials in (3). */
   test_smtp_open_default();
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_LOGIN,
-                   "invalid",
-                   "invalid");
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_auth_check(SMTP_AUTH_LOGIN,
+                  "invalid",
+                  "invalid",
+                  SMTP_STATUS_AUTH);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4661,14 +4500,13 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_send_ctr      = 0;
   g_smtp_test_err_ssl_write_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4676,27 +4514,25 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_recv_ctr     = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_recv_ctr     = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (1) Response memory allocation error. */
   test_smtp_open_default();
   g_smtp_test_err_calloc_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_calloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4705,106 +4541,98 @@ test_failure_auth(void){
   g_smtp_test_err_recv_ctr     = 0;
   g_smtp_test_err_ssl_read_ctr = 0;
   strcpy(g_smtp_test_err_recv_bytes, "535 authentication failed");
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_recv_bytes[0] = '\0';
   g_smtp_test_err_recv_ctr     = -1;
   g_smtp_test_err_ssl_read_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (2) @ref smtp_base64_decode failure. */
   test_smtp_open_default();
   g_smtp_test_err_calloc_ctr = 1;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_calloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (3) @ref HMAC failure. */
   test_smtp_open_default();
   g_smtp_test_err_hmac_ctr = 0;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_hmac_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (4) @ref smtp_bin2hex failure. */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 2;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (5) Wrap in 1st memory calculation. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 8;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (5) Wrap in 2nd memory calculation. */
   test_smtp_open_default();
   g_smtp_test_err_si_add_size_t_ctr = 9;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_si_add_size_t_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (5) Memory allocation failure. */
   test_smtp_open_default();
   g_smtp_test_err_malloc_ctr = 3;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_malloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (6) @ref smtp_base64_encode failure. */
   test_smtp_open_default();
   g_smtp_test_err_calloc_ctr = 2;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_calloc_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
@@ -4812,25 +4640,23 @@ test_failure_auth(void){
   test_smtp_open_default();
   g_smtp_test_err_send_ctr      = 1;
   g_smtp_test_err_ssl_write_ctr = 1;
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   g_config.user,
-                   g_config.pass);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_AUTH);
   g_smtp_test_err_send_ctr      = -1;
   g_smtp_test_err_ssl_write_ctr = -1;
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 
   /* CRAM-MD5 (7) Invalid credentials. */
   test_smtp_open_default();
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_CRAM_MD5,
-                   "invalid",
-                   "invalid");
-  assert(g_rc == SMTP_STATUS_AUTH);
-  smtp_close(g_config.smtp);
+  smtp_auth_check(SMTP_AUTH_CRAM_MD5,
+                  "invalid",
+                  "invalid",
+                  SMTP_STATUS_AUTH);
+  smtp_close_check(SMTP_STATUS_AUTH);
 
   smtp_test_sleep(15);
 }
@@ -4848,19 +4674,16 @@ test_failure_timeout(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
   g_smtp_test_err_select_ctr = 0;
-  g_rc = smtp_mail(g_config.smtp, "body");
+  smtp_mail_check("body", SMTP_STATUS_RECV);
   g_smtp_test_err_select_ctr = -1;
-  assert(g_rc == SMTP_STATUS_RECV);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_RECV);
+  smtp_close_check(SMTP_STATUS_RECV);
 }
 
 /**
@@ -4934,35 +4757,29 @@ smtp_func_test_gmail_attachment(void){
                    &g_config.smtp);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_auth(g_config.smtp,
-                   SMTP_AUTH_PLAIN,
-                   g_config.user,
-                   g_config.pass);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_auth_check(SMTP_AUTH_PLAIN,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_FROM,
-                          g_config.email_from,
-                          SMTP_TEST_DEFAULT_FROM_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
 
-  g_rc = smtp_address_add(g_config.smtp,
-                          SMTP_ADDRESS_TO,
-                          g_config.email_to,
-                          SMTP_TEST_DEFAULT_TO_NAME);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
 
   g_rc = smtp_attachment_add_path(g_config.smtp, name, path);
   assert(g_rc == SMTP_STATUS_OK);
 
-  g_rc = smtp_header_add(g_config.smtp, "Subject", g_config.subject);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_header_add_check("Subject", g_config.subject, SMTP_STATUS_OK);
 
-  g_rc = smtp_mail(g_config.smtp, g_config.body);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_mail_check(g_config.body, SMTP_STATUS_OK);
 
-  g_rc = smtp_close(g_config.smtp);
-  assert(g_rc == SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
 }
 
 /**
