@@ -26,62 +26,62 @@ enum smtp_status_code{
   /**
    * Successful operation completed.
    */
-  SMTP_STATUS_OK,
+  SMTP_STATUS_OK              = 0,
 
   /**
    * Memory allocation failed.
    */
-  SMTP_STATUS_NOMEM,
+  SMTP_STATUS_NOMEM           = 1,
 
   /**
    * Failed to connect to the mail server.
    */
-  SMTP_STATUS_CONNECT,
+  SMTP_STATUS_CONNECT         = 2,
 
   /**
    * Failed to handshake or negotiate a TLS connection with the server.
    */
-  SMTP_STATUS_HANDSHAKE,
+  SMTP_STATUS_HANDSHAKE       = 3,
 
   /**
    * Failed to authenticate with the given credentials.
    */
-  SMTP_STATUS_AUTH,
+  SMTP_STATUS_AUTH            = 4,
 
   /**
    * Failed to send bytes to the server.
    */
-  SMTP_STATUS_SEND,
+  SMTP_STATUS_SEND            = 5,
 
   /**
    * Failed to receive bytes from the server.
    */
-  SMTP_STATUS_RECV,
+  SMTP_STATUS_RECV            = 6,
 
   /**
    * Failed to properly close a connection.
    */
-  SMTP_STATUS_CLOSE,
+  SMTP_STATUS_CLOSE           = 7,
 
   /**
    * SMTP server sent back an unexpected status code.
    */
-  SMTP_STATUS_SERVER_RESPONSE,
+  SMTP_STATUS_SERVER_RESPONSE = 8,
 
   /**
    * Invalid parameter.
    */
-  SMTP_STATUS_PARAM,
+  SMTP_STATUS_PARAM           = 9,
 
   /**
    * Failed to open or read a local file.
    */
-  SMTP_STATUS_FILE,
+  SMTP_STATUS_FILE            = 10,
 
   /**
    * Failed to get the local date and time.
    */
-  SMTP_STATUS_DATE,
+  SMTP_STATUS_DATE            = 11,
 
   /**
    * Indicates the last status code in the enumeration, useful for
@@ -99,17 +99,17 @@ enum smtp_address_type{
   /**
    * From address.
    */
-  SMTP_ADDRESS_FROM,
+  SMTP_ADDRESS_FROM = 0,
 
   /**
    * To address.
    */
-  SMTP_ADDRESS_TO,
+  SMTP_ADDRESS_TO   = 1,
 
   /**
    * Copy address.
    */
-  SMTP_ADDRESS_CC,
+  SMTP_ADDRESS_CC   = 2,
 
   /**
    * Blind copy address.
@@ -123,7 +123,7 @@ enum smtp_address_type{
    * @ref smtp_header_add instead of as an address using
    * @ref smtp_address_add.
    */
-  SMTP_ADDRESS_BCC
+  SMTP_ADDRESS_BCC  = 3
 };
 
 /**
@@ -136,7 +136,7 @@ enum smtp_connection_security{
    * First connect without encryption, then negotiate an encrypted connection
    * by issuing a STARTTLS command.
    */
-  SMTP_SECURITY_STARTTLS,
+  SMTP_SECURITY_STARTTLS = 0,
 
   /**
    * Use TLS when initially connecting to server.
@@ -145,7 +145,7 @@ enum smtp_connection_security{
    * connecting to a legacy SMTP server which requires it.
    * Instead, use @ref SMTP_SECURITY_STARTTLS if possible.
    */
-  SMTP_SECURITY_TLS,
+  SMTP_SECURITY_TLS      = 1,
 #endif /* SMTP_OPENSSL */
 
   /**
@@ -153,7 +153,7 @@ enum smtp_connection_security{
    *
    * Not recommended unless connecting to the SMTP server locally.
    */
-  SMTP_SECURITY_NONE
+  SMTP_SECURITY_NONE     = 2
 };
 
 /**
@@ -165,24 +165,24 @@ enum smtp_authentication_method{
   /**
    * Use HMAC-MD5.
    */
-  SMTP_AUTH_CRAM_MD5,
+  SMTP_AUTH_CRAM_MD5 = 0,
 #endif /* SMTP_OPENSSL */
   /**
    * No authentication required.
    *
    * Some servers support this option if connecting locally.
    */
-  SMTP_AUTH_NONE,
+  SMTP_AUTH_NONE     = 1,
 
   /**
    * Authenticate using base64 user and password.
    */
-  SMTP_AUTH_PLAIN,
+  SMTP_AUTH_PLAIN    = 2,
 
   /**
    * Another base64 authentication method, similar to SMTP_AUTH_PLAIN.
    */
-  SMTP_AUTH_LOGIN
+  SMTP_AUTH_LOGIN    = 3
 };
 
 /**
