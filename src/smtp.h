@@ -135,15 +135,15 @@ enum smtp_connection_security{
   /**
    * First connect without encryption, then negotiate an encrypted connection
    * by issuing a STARTTLS command.
+   *
+   * Typically used when connecting to a mail server on port 25 or 587.
    */
   SMTP_SECURITY_STARTTLS = 0,
 
   /**
    * Use TLS when initially connecting to server.
    *
-   * SMTP clients should not use this connection type unless
-   * connecting to a legacy SMTP server which requires it.
-   * Instead, use @ref SMTP_SECURITY_STARTTLS if possible.
+   * Typically used when connecting to a mail server on port 465.
    */
   SMTP_SECURITY_TLS      = 1,
 #endif /* SMTP_OPENSSL */

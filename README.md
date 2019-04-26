@@ -24,7 +24,7 @@ Official repository location:
 Supports the following connection methods:
 * No encryption
 * STARTTLS (requires OpenSSL)
-* TLS direct connection (deprecated - requires OpenSSL)
+* TLS direct connection (requires OpenSSL)
 
 Supports the following authentication methods:
 * none
