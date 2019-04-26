@@ -3,7 +3,8 @@
 This is an SMTP client library written in C which can get included
 directly into another program.
 
-This library has been released into the public domain using [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+This library has been released into the public domain using
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 
 Official repository location:
 [www.somnisoft.com/smtp-client](https://www.somnisoft.com/smtp-client)
@@ -122,7 +123,7 @@ resetting the error condition using smtp_status_code_clear.
 
 The following example demonstrates how to send an HTML email by overriding the
 Content-Type header. When overriding this header, any attachments added using
-the smtp_attachment_add* functions will get ignored. The application must
+the smtp_attachment_add\* functions will get ignored. The application must
 generate the appropriate MIME sections (if needed) when overriding this
 header.
 
@@ -192,5 +193,7 @@ int main(void){
 ```
 
 ## Technical Documentation
-See the [Technical Documentation](https://www.somnisoft.com/smtp-client/technical-documentation/index.html) generated from Doxygen.
+See the [Technical Documentation](
+https://www.somnisoft.com/smtp-client/technical-documentation/index.html)
+generated from Doxygen.
 
