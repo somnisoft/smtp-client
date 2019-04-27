@@ -4713,7 +4713,7 @@ test_all_failure_modes(void){
  *   - Multiple recipients
  */
 static void
-smtp_func_test_postfix(void){
+smtp_func_test_server_postfix(void){
   int rc;
 
   rc = smtp_test_config_load_from_file("test/config/postfix.txt");
@@ -4737,6 +4737,44 @@ smtp_func_test_postfix(void){
   smtp_func_test_all_html();
 }
 
+/**
+ * Open and close a connection to secureserver.net.
+ */
+static void
+smtp_func_test_server_secureserver(void){
+  const char *const server = "smtpout.secureserver.net";
+  const char *port;
+  enum smtp_connection_security conn_security;
+  struct smtp *smtp;
+  unsigned int connection_i;
+  unsigned int i;
+
+  for(connection_i = 0; connection_i < 2; connection_i++){
+    if(connection_i == 0){
+      port = "25";
+      conn_security = SMTP_SECURITY_STARTTLS;
+    }
+    else{
+      port = "465";
+      conn_security = SMTP_SECURITY_TLS;
+    }
+    for(i = 0; i < 4; i++){
+      fprintf(stderr, "%s: %s: %u\n", server, port, i + 1);
+      g_rc = smtp_open(server,
+                       port,
+                       conn_security,
+                       SMTP_DEBUG,
+                       NULL,
+                       &smtp);
+      assert(g_rc == SMTP_STATUS_OK);
+
+      g_rc = smtp_close(smtp);
+      assert(g_rc == SMTP_STATUS_OK);
+
+      smtp_test_sleep(1);
+    }
+  }
+}
 
 /**
  * Send attachment to test gmail account.
@@ -4789,7 +4827,7 @@ smtp_func_test_gmail_attachment(void){
  * have been designed to work with a local postfix server instance.
  */
 static void
-smtp_func_test_gmail(void){
+smtp_func_test_server_gmail(void){
   int rc;
 
   rc = smtp_test_config_load_from_file("test/config/gmail.txt");
@@ -4812,8 +4850,9 @@ smtp_func_test_gmail(void){
  */
 static void
 smtp_func_test_all(void){
-  smtp_func_test_gmail();
-  smtp_func_test_postfix();
+  smtp_func_test_server_secureserver();
+  smtp_func_test_server_gmail();
+  smtp_func_test_server_postfix();
 }
 
 /**
