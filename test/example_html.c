@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "smtp.h"
 #define MAIL_SERVER              "localhost"
-#define MAIL_PORT                "25"
+#define MAIL_PORT                "587"
 #define MAIL_CONNECTION_SECURITY SMTP_SECURITY_NONE
 #define MAIL_FLAGS               SMTP_DEBUG
 #define MAIL_CAFILE              NULL

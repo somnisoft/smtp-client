@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "smtp.h"
 #define MAIL_SERVER              "mail.example.com"
-#define MAIL_PORT                "25"
+#define MAIL_PORT                "587"
 #define MAIL_CONNECTION_SECURITY SMTP_SECURITY_STARTTLS
 #define MAIL_FLAGS               (SMTP_DEBUG         | \
                                   SMTP_NO_CERT_VERIFY) /* Do not verify cert. */
