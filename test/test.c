@@ -2602,6 +2602,55 @@ smtp_func_test_attachment_mem(size_t num_attachment){
 }
 
 /**
+ * Send multiple PDF attachments.
+ *
+ * @param[in] num_attachments Number of attachments to send.
+ */
+static void
+smtp_func_test_attachment_pdf(const size_t num_attachments){
+  char attachment_name[SMTP_MAX_ATTACHMENT_NAME_LEN];
+  size_t i;
+
+  sprintf(g_config.subject,
+          "SMTP Test: PDF Attachments (%u)",
+          (unsigned)num_attachments);
+  sprintf(g_config.body,
+          "You should have %u PDF attachments in this email. "
+          "Each attachment should contain the text "
+          "\"SMTP TEST PDF ATTACHMENT\"",
+          (unsigned)num_attachments);
+  g_rc = smtp_open(g_config.server,
+                   g_config.port,
+                   SMTP_TEST_DEFAULT_CONNECTION_SECURITY,
+                   SMTP_TEST_DEFAULT_FLAGS,
+                   SMTP_TEST_DEFAULT_CAFILE,
+                   &g_config.smtp);
+  assert(g_rc == SMTP_STATUS_OK);
+  smtp_auth_check(SMTP_TEST_DEFAULT_AUTH_METHOD,
+                  g_config.user,
+                  g_config.pass,
+                  SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_FROM,
+                         g_config.email_from,
+                         SMTP_TEST_DEFAULT_FROM_NAME,
+                         SMTP_STATUS_OK);
+  smtp_address_add_check(SMTP_ADDRESS_TO,
+                         g_config.email_to,
+                         SMTP_TEST_DEFAULT_TO_NAME,
+                         SMTP_STATUS_OK);
+  for(i = 0; i < num_attachments; i++){
+    sprintf(attachment_name, "test-%u.pdf", (unsigned)(i + 1));
+    g_rc = smtp_attachment_add_path(g_config.smtp,
+                                    attachment_name,
+                                    "test/test.pdf");
+    assert(g_rc == SMTP_STATUS_OK);
+  }
+  smtp_header_add_check("Subject", g_config.subject, SMTP_STATUS_OK);
+  smtp_mail_check(g_config.body, SMTP_STATUS_OK);
+  smtp_close_check(SMTP_STATUS_OK);
+}
+
+/**
  * Test sending long text attachments.
  */
 static void
@@ -2661,6 +2710,9 @@ smtp_func_test_all_attachments_mem(void){
 
   /* Send 10 attachments in one email. */
   smtp_func_test_attachment_mem(10);
+
+  /* Send 10 PDF attachments in one email. */
+  smtp_func_test_attachment_pdf(10);
 
   smtp_func_test_attachment_long_text();
 }
