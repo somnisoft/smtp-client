@@ -1448,7 +1448,7 @@ smtp_file_get_contents(const char *const filename,
   FILE *fp;
   char *read_buf;
 
-  if((fp = fopen(filename, "r")) == NULL){
+  if((fp = fopen(filename, "rb")) == NULL){
     return NULL;
   }
 
