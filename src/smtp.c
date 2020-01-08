@@ -53,13 +53,6 @@
 # include <openssl/x509v3.h>
 #endif /* SMTP_OPENSSL */
 
-#ifndef SIZE_MAX
-/**
- * Maximum value of size_t type.
- */
-# define SIZE_MAX ((size_t)(-1))
-#endif /* SIZE_MAX */
-
 /**
  * Get access to the @ref smtp_result_code and @ref smtp_command definitions.
  */

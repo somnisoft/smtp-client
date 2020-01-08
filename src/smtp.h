@@ -16,6 +16,13 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#ifndef SIZE_MAX
+/**
+ * Maximum value of size_t type.
+ */
+# define SIZE_MAX ((size_t)(-1))
+#endif /* SIZE_MAX */
+
 /**
  * Status codes indicating success or failure from calling any of the
  * SMTP library functions.
