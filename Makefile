@@ -17,6 +17,8 @@
 BDIR = build
 INSTALL_PREFIX = /usr/local
 
+GCC_VERSION_MAJOR = $(shell gcc -dumpversion | sed 's/\..*//g' | tr -d '\n')
+
 CWARN += -Waggregate-return
 CWARN += -Wall
 CWARN += -Wbad-function-cast
@@ -60,17 +62,20 @@ CWARN += -Wunused-parameter
 CWARN += -Wvla
 CWARN += -Wwrite-strings
 
+ifeq ($(shell test $(GCC_VERSION_MAJOR) -ge 7 ; echo $$?), 0)
+  CWARN.gcc += -Wduplicated-branches
+  CWARN.gcc += -Wrestrict
+  CWARN.gcc += -Wstringop-overflow=4
+endif
+
 CWARN.gcc += -Wno-aggressive-loop-optimizations
-CWARN.gcc += -Wduplicated-branches
 CWARN.gcc += -Wduplicated-cond
 CWARN.gcc += -Wjump-misses-init
 CWARN.gcc += -Wlogical-op
 CWARN.gcc += -Wnormalized=nfkc
-CWARN.gcc += -Wrestrict
 CWARN.gcc += -Wstack-usage=5000
 CWARN.gcc += -Wshift-overflow=2
 CWARN.gcc += -Wsync-nand
-CWARN.gcc += -Wstringop-overflow=4
 CWARN.gcc += -Wtrampolines
 ##CWARN.gcc += -Wunsafe-loop-optimizations
 CWARN.gcc += -Wunsuffixed-float-constants
