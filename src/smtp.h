@@ -216,6 +216,12 @@ struct smtp;
 
 #ifdef __cplusplus
 extern "C" {
+inline smtp_flag operator|(smtp_flag lhs, smtp_flag rhs) {
+    return static_cast<smtp_flag>(static_cast<unsigned long>(lhs) | static_cast<unsigned long>(rhs));
+}
+inline void operator|=(smtp_flag& lhs, const smtp_flag& rhs) {
+    lhs = static_cast<smtp_flag>(static_cast<unsigned long>(lhs) | static_cast<unsigned long>(rhs));
+}
 #endif /* __cplusplus */
 
 /**
