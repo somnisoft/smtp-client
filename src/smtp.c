@@ -220,6 +220,13 @@ struct smtp{
    */
   const char *cafile;
 
+  /**
+   * Indicates if the connection transaction needs to enable UTF-8 support.
+   *   - Set to 0 if no need to turn on the support.
+   *   - Set to 1 if the transaction needs to turn on the support.
+   */
+  long utf8_on;
+
 #ifdef SMTP_OPENSSL
   /**
    * OpenSSL TLS object.
@@ -2769,7 +2776,7 @@ smtp_mail_envelope_header(struct smtp *const smtp,
   }
 
   smtputf8_opt = "";
-  if(smtp_str_has_nonascii_utf8(address->email)){
+  if(smtp->utf8_on && address->type == SMTP_ADDRESS_FROM){
     smtputf8_opt = SMTPUTF8;
   }
 
@@ -2974,7 +2981,8 @@ g_smtp_error = {
   0,                        /* timeout_sec                  */
   SMTP_STATUS_NOMEM,        /* smtp_status_code status_code */
   0,                        /* tls_on                       */
-  NULL                      /* cafile                       */
+  NULL,                     /* cafile                       */
+  0                         /* utf8_on                      */
 #ifdef SMTP_OPENSSL
   ,
   NULL,                     /* tls                          */
@@ -3394,6 +3402,10 @@ smtp_address_add(struct smtp *const smtp,
   }
   smtp->num_address = num_address_inc;
 
+  if (!smtp->utf8_on && smtp_str_has_nonascii_utf8(new_address->email)) {
+    smtp->utf8_on = 1;
+  }
+
   return smtp->status_code;
 }
 
@@ -3410,6 +3422,7 @@ smtp_address_clear_all(struct smtp *const smtp){
   free(smtp->address_list);
   smtp->address_list = NULL;
   smtp->num_address = 0;
+  smtp->utf8_on = 0;
 }
 
 enum smtp_status_code
